@@ -1,0 +1,23 @@
+.claude-plugin/marketplace.json
+  8a11691161759031 4-7,12-13,17-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "9a7eda8a024e66895cbb52a14ccdfe9b98b9ab0e",
+  "prompts": {
+    "8a11691161759031": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a27b5ff1-487e-47a5-987b-4e05f5a88741",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Donovan Yohan",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 8,
+      "accepted_lines": 8,
+      "overriden_lines": 0
+    }
+  }
+}
