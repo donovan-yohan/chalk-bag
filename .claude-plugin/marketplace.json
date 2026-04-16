@@ -1,21 +1,21 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills",
-  "description": "Reusable agent skills for structured documentation lifecycle management and PR automation. Works with Claude Code, Hermes, and other coding agents.",
-  "author": {
-    "name": "donovanyohan"
+  "owner": { "name": "donovanyohan" },
+  "metadata": {
+    "description": "Reusable agent skills for structured documentation lifecycle management and PR automation. Works with Claude Code, Hermes, and other coding agents.",
+    "version": "1.0.0"
   },
-  "repository": "https://github.com/donovan-yohan/agent-skills",
   "plugins": [
     {
       "name": "harness",
-      "description": "Self-improving documentation system with agent evolution, metrics-driven self-modification, and stateless command protocol.",
-      "source": "./plugins/harness"
+      "source": "./plugins/harness",
+      "description": "Self-improving documentation system with agent evolution, metrics-driven self-modification, and stateless command protocol."
     },
     {
       "name": "pr",
-      "description": "Pull request lifecycle management — authoring, reviewing, resolving, and updating PRs.",
-      "source": "./plugins/pr"
+      "source": "./plugins/pr",
+      "description": "Pull request lifecycle management — authoring, reviewing, resolving, and updating PRs."
     }
   ]
 }
