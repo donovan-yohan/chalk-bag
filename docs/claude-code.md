@@ -5,7 +5,7 @@
 Install the full marketplace (both plugins):
 
 ```bash
-claude /plugins add https://github.com/donovan-yohan/agent-skills
+claude /plugins add https://github.com/donovan-yohan/chalk-bag
 ```
 
 ## Individual Plugins
@@ -14,10 +14,10 @@ Install plugins separately if you only need one:
 
 ```bash
 # Documentation lifecycle management
-claude /plugins add https://github.com/donovan-yohan/agent-skills/plugins/harness
+claude /plugins add https://github.com/donovan-yohan/chalk-bag/plugins/harness
 
 # PR automation
-claude /plugins add https://github.com/donovan-yohan/agent-skills/plugins/pr
+claude /plugins add https://github.com/donovan-yohan/chalk-bag/plugins/pr
 ```
 
 ## Verification
@@ -64,5 +64,5 @@ To update to the latest version, remove and re-add:
 
 ```bash
 claude /plugins remove harness
-claude /plugins add https://github.com/donovan-yohan/agent-skills/plugins/harness
+claude /plugins add https://github.com/donovan-yohan/chalk-bag/plugins/harness
 ```

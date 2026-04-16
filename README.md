@@ -1,4 +1,4 @@
-# agent-skills
+# chalk-bag
 
 Reusable agent skills for structured software development workflows. Two plugins:
 
@@ -51,17 +51,17 @@ Pull request lifecycle management with multi-perspective automated review.
 Install as a marketplace. From any project directory:
 
 ```bash
-claude /plugins add https://github.com/donovan-yohan/agent-skills
+claude /plugins add https://github.com/donovan-yohan/chalk-bag
 ```
 
 This registers both plugins. You can also install individual plugins:
 
 ```bash
 # Install just the harness plugin
-claude /plugins add https://github.com/donovan-yohan/agent-skills/plugins/harness
+claude /plugins add https://github.com/donovan-yohan/chalk-bag/plugins/harness
 
 # Install just the pr plugin
-claude /plugins add https://github.com/donovan-yohan/agent-skills/plugins/pr
+claude /plugins add https://github.com/donovan-yohan/chalk-bag/plugins/pr
 ```
 
 ### Hermes

@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "agent-skills",
+  "name": "chalk-bag",
   "owner": { "name": "donovanyohan" },
   "metadata": {
     "description": "Reusable agent skills for structured documentation lifecycle management and PR automation. Works with Claude Code, Hermes, and other coding agents.",

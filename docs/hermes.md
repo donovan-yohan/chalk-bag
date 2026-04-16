@@ -1,21 +1,21 @@
 # Hermes Integration
 
-This guide describes how to use agent-skills with the [Hermes](https://github.com/anthropics/hermes) agent harness.
+This guide describes how to use chalk-bag with the [Hermes](https://github.com/anthropics/hermes) agent harness.
 
 ## Overview
 
-Hermes uses profiles, plugins, and skills for behavior loading. The agent-skills commands are standard markdown that Hermes can load through its plugin system or as direct skill injections.
+Hermes uses profiles, plugins, and skills for behavior loading. The chalk-bag commands are standard markdown that Hermes can load through its plugin system or as direct skill injections.
 
 ## Option 1: Hermes Plugin (Recommended)
 
 Clone the repo and register it as a Hermes plugin:
 
 ```bash
-# Clone agent-skills
-git clone https://github.com/donovan-yohan/agent-skills.git ~/.hermes/plugins/agent-skills
+# Clone chalk-bag
+git clone https://github.com/donovan-yohan/chalk-bag.git ~/.hermes/plugins/chalk-bag
 
 # Or symlink from an existing clone
-ln -s /path/to/agent-skills ~/.hermes/plugins/agent-skills
+ln -s /path/to/chalk-bag ~/.hermes/plugins/chalk-bag
 ```
 
 Then in your Hermes profile, enable the plugins:
@@ -23,8 +23,8 @@ Then in your Hermes profile, enable the plugins:
 ```yaml
 # ~/.hermes/profiles/my-project.yaml
 plugins:
-  - agent-skills/plugins/harness
-  - agent-skills/plugins/pr
+  - chalk-bag/plugins/harness
+  - chalk-bag/plugins/pr
 ```
 
 ## Option 2: Skill Preloading
@@ -34,17 +34,17 @@ Load individual command files as Hermes skills. This is useful when you only nee
 ```yaml
 # ~/.hermes/profiles/my-project.yaml
 skills:
-  - path: ~/.hermes/plugins/agent-skills/plugins/harness/commands/brainstorm.md
+  - path: ~/.hermes/plugins/chalk-bag/plugins/harness/commands/brainstorm.md
     name: brainstorm
-  - path: ~/.hermes/plugins/agent-skills/plugins/harness/commands/plan.md
+  - path: ~/.hermes/plugins/chalk-bag/plugins/harness/commands/plan.md
     name: plan
-  - path: ~/.hermes/plugins/agent-skills/plugins/harness/commands/review.md
+  - path: ~/.hermes/plugins/chalk-bag/plugins/harness/commands/review.md
     name: review
 ```
 
 ## Option 3: Belayer Integration
 
-When running inside a Belayer session, the agent-skills are automatically available through Belayer's Hermes plugin enablement:
+When running inside a Belayer session, the chalk-bag are automatically available through Belayer's Hermes plugin enablement:
 
 ```bash
 # Belayer injects these env vars into Hermes
@@ -63,7 +63,7 @@ The harness scripts (`plugins/harness/scripts/*.sh`) use `${CLAUDE_PLUGIN_ROOT}`
 ```yaml
 # ~/.hermes/profiles/my-project.yaml
 env:
-  CLAUDE_PLUGIN_ROOT: ~/.hermes/plugins/agent-skills/plugins/harness
+  CLAUDE_PLUGIN_ROOT: ~/.hermes/plugins/chalk-bag/plugins/harness
 ```
 
 Or if using Belayer's env injection, Belayer handles this automatically.
@@ -82,9 +82,9 @@ These agents use the same markdown format as Hermes agent definitions. Load them
 
 ```yaml
 agents:
-  - path: ~/.hermes/plugins/agent-skills/plugins/harness/agents/harness-pruner.md
-  - path: ~/.hermes/plugins/agent-skills/plugins/harness/agents/learnings-reviewer.md
-  - path: ~/.hermes/plugins/agent-skills/plugins/harness/agents/harness-evolver.md
+  - path: ~/.hermes/plugins/chalk-bag/plugins/harness/agents/harness-pruner.md
+  - path: ~/.hermes/plugins/chalk-bag/plugins/harness/agents/learnings-reviewer.md
+  - path: ~/.hermes/plugins/chalk-bag/plugins/harness/agents/harness-evolver.md
 ```
 
 ## Differences from Claude Code
