@@ -1,0 +1,31 @@
+LICENSE
+  8a11691161759031 1-21
+docs/claude-code.md
+  8a11691161759031 1-68
+docs/hermes.md
+  8a11691161759031 1-108
+README.md
+  8a11691161759031 1-109
+.claude-plugin/marketplace.json
+  8a11691161759031 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "48e7961ea7fbd5b6c66b6ca13fe833b9238fffcb",
+  "prompts": {
+    "8a11691161759031": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a27b5ff1-487e-47a5-987b-4e05f5a88741",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Donovan Yohan",
+      "messages": [],
+      "total_additions": 327,
+      "total_deletions": 0,
+      "accepted_lines": 327,
+      "overriden_lines": 0
+    }
+  }
+}
