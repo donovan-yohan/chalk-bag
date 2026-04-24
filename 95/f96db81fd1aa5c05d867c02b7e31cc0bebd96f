@@ -1,0 +1,131 @@
+chalkbag/src/providers/codex.ts
+  b7901de65aa7a4be 1-289
+chalkbag/tests/registry.test.ts
+  b7901de65aa7a4be 1-296
+.gitignore
+  b7901de65aa7a4be 1-4
+chalkbag/tests/cli.test.ts
+  b7901de65aa7a4be 1-103
+chalkbag/src/imports/cache.ts
+  b7901de65aa7a4be 1-64
+chalkbag/src/types.ts
+  b7901de65aa7a4be 1-58
+chalkbag/tests/fd-load.test.ts
+  b7901de65aa7a4be 1-334
+chalkbag/src/gitignore.ts
+  b7901de65aa7a4be 1-39
+chalkbag/src/spec/schema.ts
+  b7901de65aa7a4be 1-158
+chalkbag/docs/onboarding.md
+  b7901de65aa7a4be 1-217
+chalkbag/src/spec/load.ts
+  b7901de65aa7a4be 1-370
+chalkbag/src/providers/claude.ts
+  b7901de65aa7a4be 1-204
+chalkbag/src/watcher.ts
+  b7901de65aa7a4be 1-268
+chalkbag/tests/scope.test.ts
+  b7901de65aa7a4be 1-186
+chalkbag/docs/agents-spec.md
+  b7901de65aa7a4be 1-367
+chalkbag/docs/extending.md
+  b7901de65aa7a4be 1-180
+chalkbag/src/daemon/entry.ts
+  b7901de65aa7a4be 1-69
+chalkbag/src/spec/validate.ts
+  b7901de65aa7a4be 1-7
+chalkbag/src/daemon/launchd.ts
+  b7901de65aa7a4be 1-243
+chalkbag/tests/watcher.test.ts
+  b7901de65aa7a4be 1-454
+README.md
+  b7901de65aa7a4be 3,5,9-23
+chalkbag/src/commands/scaffold.ts
+  b7901de65aa7a4be 1-175
+chalkbag/src/cli.ts
+  b7901de65aa7a4be 1-502
+chalkbag/src/providers/registry.ts
+  b7901de65aa7a4be 1-53
+chalkbag/src/providers/_plugin.ts
+  b7901de65aa7a4be 1-30
+chalkbag/src/picomatch.d.ts
+  b7901de65aa7a4be 1-18
+chalkbag/templates/.agents/README.md
+  b7901de65aa7a4be 1-9
+chalkbag/tests/imports.test.ts
+  b7901de65aa7a4be 1-63
+chalkbag/src/spec/frontmatter.ts
+  b7901de65aa7a4be 1-45
+chalkbag/tsconfig.json
+  b7901de65aa7a4be 1-15
+chalkbag/src/imports/index.ts
+  b7901de65aa7a4be 1-4
+chalkbag/vitest.config.ts
+  b7901de65aa7a4be 1-7
+chalkbag/README.md
+  b7901de65aa7a4be 1-212
+chalkbag/tests/launchd.test.ts
+  b7901de65aa7a4be 1-185
+chalkbag/src/scope.ts
+  b7901de65aa7a4be 1-96
+chalkbag/src/manifest.ts
+  b7901de65aa7a4be 1-62
+chalkbag/docs/troubleshooting.md
+  b7901de65aa7a4be 1-263
+chalkbag/templates/.agents/skills/example-skill/SKILL.md
+  b7901de65aa7a4be 1-8
+docs/plans/2026-04-23-chalkbag-cli-port-plan.md
+  b7901de65aa7a4be 1-591
+chalkbag/src/imports/auth.ts
+  b7901de65aa7a4be 1-19
+chalkbag/tests/render.test.ts
+  b7901de65aa7a4be 1-324
+chalkbag/src/daemon/registry.ts
+  b7901de65aa7a4be 1-368
+chalkbag/tests/scaffold.test.ts
+  b7901de65aa7a4be 1-183
+chalkbag/src/hooks.ts
+  b7901de65aa7a4be 1-140
+chalkbag/src/spec/types.ts
+  b7901de65aa7a4be 1-11
+chalkbag/src/imports/merge.ts
+  b7901de65aa7a4be 1-251
+chalkbag/templates/.agents/subagents/example-subagent.md
+  b7901de65aa7a4be 1-11
+chalkbag/src/imports/resolve.ts
+  b7901de65aa7a4be 1-131
+chalkbag/src/importer.ts
+  b7901de65aa7a4be 1-226
+chalkbag/src/render.ts
+  b7901de65aa7a4be 1-387
+chalkbag/docs/errors.md
+  b7901de65aa7a4be 1-214
+chalkbag/src/providers/opencode.ts
+  b7901de65aa7a4be 1-191
+chalkbag/templates/.agents/providers.yaml
+  b7901de65aa7a4be 1-14
+chalkbag/templates/.agents/permissions.yaml
+  b7901de65aa7a4be 1-60
+chalkbag/package.json
+  b7901de65aa7a4be 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "95f96db81fd1aa5c05d867c02b7e31cc0bebd96f",
+  "prompts": {
+    "b7901de65aa7a4be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8494ec73-ebbe-46a2-a1c5-04b26948997a",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Donovan Yohan",
+      "messages": [],
+      "total_additions": 13229,
+      "total_deletions": 197,
+      "accepted_lines": 13033,
+      "overriden_lines": 0
+    }
+  }
+}
