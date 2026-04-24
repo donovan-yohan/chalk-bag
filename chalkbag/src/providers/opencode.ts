@@ -3,6 +3,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 
 import type { LoadedAgentsRepo } from '../spec/load.js';
+import type { PermissionsConfig } from '../spec/schema.js';
 import type { GeneratedOutput, Provider } from './_plugin.js';
 
 const opencodeProvider = {
@@ -65,7 +66,22 @@ function renderMarkdownDocument(frontmatter: Record<string, unknown>, body: stri
 }
 
 function stripSubagentSourcePrefix(relativePath: string): string {
-  return relativePath.replace(/^\.agents\/subagents\//u, '');
+  return relativePath.replace(/^(imports:[^/]+\/)?\.agents\/subagents\//u, '');
+}
+
+function translateDefaultMode(mode?: PermissionsConfig['defaultMode']): 'allow' | 'deny' | 'ask' | undefined {
+  if (!mode) return undefined;
+  switch (mode) {
+    case 'acceptEdits':
+    case 'auto':
+    case 'dontAsk':
+      return 'allow';
+    case 'plan':
+    case 'default':
+      return 'ask';
+    default:
+      return undefined;
+  }
 }
 
 function buildOpencodePermissionConfig(
@@ -74,7 +90,10 @@ function buildOpencodePermissionConfig(
   const permissions = repo.permissions;
   const output: Record<string, unknown> = {};
 
-  setMode(output, '*', permissions?.defaultMode);
+  const translatedMode = translateDefaultMode(permissions?.defaultMode);
+  if (translatedMode !== undefined) {
+    setMode(output, '*', translatedMode);
+  }
   if (!permissions) {
     return output;
   }
@@ -145,6 +164,10 @@ function readExistingPermission(repoRoot: string): Record<string, unknown> {
   }
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function mergePermissions(
   existing: Record<string, unknown>,
   generated: Record<string, unknown>,
@@ -152,7 +175,13 @@ function mergePermissions(
   const merged: Record<string, unknown> = { ...existing };
 
   for (const [key, value] of Object.entries(generated)) {
-    merged[key] = value;
+    const existingValue = merged[key];
+    // Deep-merge when both sides are plain objects (e.g. bash, edit, read, webfetch tool keys)
+    if (isPlainObject(existingValue) && isPlainObject(value)) {
+      merged[key] = { ...existingValue, ...value };
+    } else {
+      merged[key] = value;
+    }
   }
 
   return merged;

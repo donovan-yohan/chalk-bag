@@ -36,14 +36,26 @@ async function main(): Promise<void> {
     void touchHeartbeat();
   }, 30_000);
 
-  let watchers = await startWatchers();
-
-  // SIGHUP reloads the registry and restarts all watchers
-  const reload = async (): Promise<void> => {
-    for (const w of watchers.splice(0)) {
-      await w.close();
+  function attachFailedHandlers(ws: Watcher[]): void {
+    for (const w of ws) {
+      w.failed.catch((e: unknown) => {
+        console.error('chalkbag daemon: watcher failed:', e instanceof Error ? e.message : e);
+      });
     }
-    watchers = await startWatchers();
+  }
+
+  let watchers = await startWatchers();
+  attachFailedHandlers(watchers);
+
+  // SIGHUP reloads the registry and restarts all watchers (serialized)
+  let reloading: Promise<void> = Promise.resolve();
+  const reload = (): Promise<void> => {
+    reloading = reloading.then(async () => {
+      for (const w of watchers.splice(0)) await w.close();
+      watchers = await startWatchers();
+      attachFailedHandlers(watchers);
+    });
+    return reloading;
   };
 
   process.on('SIGHUP', () => {

@@ -19,11 +19,14 @@ export async function ensureCached(
   token: string | null,
 ): Promise<string> {
   const dir = cacheDir(owner, repo, sha);
+  const readyMarker = path.join(dir, '.chalkbag-ready');
 
-  if (await pathExists(path.join(dir, '.git'))) {
+  if (await pathExists(readyMarker)) {
     return dir;
   }
 
+  // Remove any partially-cloned directory from a previous failed attempt
+  await fs.promises.rm(dir, { recursive: true, force: true }).catch(() => {});
   await fs.promises.mkdir(dir, { recursive: true });
 
   const url = token
@@ -50,6 +53,10 @@ export async function ensureCached(
       fix: 'check your network connection and that the repository exists and is accessible',
     });
   }
+
+  // Write the sentinel AFTER successful checkout — any error above leaves it absent,
+  // so the next run treats the cache as a miss.
+  await fs.promises.writeFile(readyMarker, new Date().toISOString(), 'utf8');
 
   return dir;
 }

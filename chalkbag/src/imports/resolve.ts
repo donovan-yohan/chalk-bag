@@ -27,8 +27,12 @@ export function validateImportPath(importPath: string, source: string): void {
     });
   }
 
-  // Reject absolute paths
-  if (importPath.startsWith('/')) {
+  // Reject absolute paths (POSIX, Windows drive letters, UNC paths)
+  if (
+    importPath.startsWith('/') ||
+    /^[A-Za-z]:[\\/]/.test(importPath) ||
+    importPath.startsWith('\\\\')
+  ) {
     throw new ChalkBagError({
       kind: 'config',
       file: source,

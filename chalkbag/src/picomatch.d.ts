@@ -1,16 +1,12 @@
 declare module 'picomatch' {
-  export interface PicomatchScanResult {
+  export type PicomatchScanResult = {
     base: string;
-  }
+  };
 
   interface Picomatch {
     (path: string, options?: Record<string, unknown>): (candidate: string) => boolean;
     scan(input: string): PicomatchScanResult;
   }
-
-  export type PicomatchScanResult = {
-    base: string;
-  };
 
   const picomatch: Picomatch;
 

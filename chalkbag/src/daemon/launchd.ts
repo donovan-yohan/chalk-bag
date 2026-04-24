@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 import { ChalkBagError } from '../types.js';
 import { getLaunchdPlistPath, getLogDir, getConfigHome } from './registry.js';
@@ -219,7 +220,7 @@ async function resolveTsxPath(): Promise<string> {
     // Installed globally via npm — tsx next to node
     path.join(path.dirname(process.execPath), 'tsx'),
     // Local node_modules (dev mode)
-    new URL('../../../node_modules/.bin/tsx', import.meta.url).pathname,
+    fileURLToPath(new URL('../../../node_modules/.bin/tsx', import.meta.url)),
   ];
 
   for (const candidate of candidates) {
@@ -238,6 +239,6 @@ async function resolveTsxPath(): Promise<string> {
 function resolveEntryPath(): string {
   // When installed as a dist build, entry is dist/daemon/entry.js
   // When running via tsx in dev, entry is src/daemon/entry.ts
-  const distEntry = new URL('../daemon/entry.js', import.meta.url).pathname;
+  const distEntry = fileURLToPath(new URL('../daemon/entry.js', import.meta.url));
   return distEntry;
 }

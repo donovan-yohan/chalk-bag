@@ -104,19 +104,18 @@ export async function mergeImport(
 
 function buildLocalCollisionSet(repo: LoadedAgentsRepo): Set<string> {
   const seen = new Set<string>();
-  if (repo.root) seen.add('AGENTS.md'.toLowerCase());
-  if (repo.permissions) seen.add('permissions.yaml'.toLowerCase());
+  if (repo.root) seen.add('AGENTS.md');
+  if (repo.permissions) seen.add('permissions.yaml');
   for (const skill of repo.skills) {
-    seen.add(skill.directoryRelativePath.toLowerCase());
-    for (const file of skill.files) seen.add(file.relativePath.toLowerCase());
+    seen.add(skill.directoryRelativePath);
+    for (const file of skill.files) seen.add(file.relativePath);
   }
-  for (const subagent of repo.subagents) seen.add(subagent.relativePath.toLowerCase());
+  for (const subagent of repo.subagents) seen.add(subagent.relativePath);
   return seen;
 }
 
 function assertNoImportCollision(seen: Set<string>, relativePath: string, source: string): void {
-  const key = relativePath.toLowerCase();
-  if (seen.has(key)) {
+  if (seen.has(relativePath)) {
     throw new ChalkBagError({
       kind: 'config',
       file: source,
@@ -124,7 +123,7 @@ function assertNoImportCollision(seen: Set<string>, relativePath: string, source
       fix: 'rename one of the conflicting skills or subagents so their paths are unique across all imports',
     });
   }
-  seen.add(key);
+  seen.add(relativePath);
 }
 
 async function loadSkillDirectory(

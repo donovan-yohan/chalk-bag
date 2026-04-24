@@ -144,6 +144,39 @@ export async function writeRegistry(registry: Registry): Promise<void> {
   }
 }
 
+const REGISTRY_LOCK_TIMEOUT_MS = 5000;
+const REGISTRY_LOCK_POLL_MS = 50;
+
+async function withRegistryLock<T>(fn: () => Promise<T>): Promise<T> {
+  const lockPath = path.join(getConfigHome(), 'registry.lock');
+  await fs.promises.mkdir(path.dirname(lockPath), { recursive: true });
+  const start = Date.now();
+  while (true) {
+    try {
+      const handle = await fs.promises.open(lockPath, 'wx');
+      await handle.writeFile(String(process.pid));
+      await handle.close();
+      break;
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException)?.code !== 'EEXIST') throw error;
+      if (Date.now() - start >= REGISTRY_LOCK_TIMEOUT_MS) {
+        throw new ChalkBagError({
+          kind: 'lock',
+          file: lockPath,
+          message: `timed out waiting for registry lock after ${REGISTRY_LOCK_TIMEOUT_MS}ms`,
+          fix: `if no other chalkbag process is running, delete the lock file: rm ${lockPath}`,
+        });
+      }
+      await new Promise((r) => setTimeout(r, REGISTRY_LOCK_POLL_MS));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    await fs.promises.rm(lockPath, { force: true });
+  }
+}
+
 /**
  * Adds a path entry to the registry.
  *
@@ -155,51 +188,53 @@ export async function writeRegistry(registry: Registry): Promise<void> {
  * Deduplicates and sorts `providers` and `ignore` arrays before persisting.
  */
 export async function addPath(entry: Omit<WatchedPath, 'installedAt'>): Promise<void> {
-  const registry = await readRegistry();
-  const newPath = path.resolve(entry.path);
+  await withRegistryLock(async () => {
+    const registry = await readRegistry();
+    const newPath = path.resolve(entry.path);
 
-  for (const existing of registry.paths) {
-    const e = path.resolve(existing.path);
+    for (const existing of registry.paths) {
+      const e = path.resolve(existing.path);
 
-    if (e === newPath) {
-      throw new ChalkBagError({
-        kind: 'config',
-        file: newPath,
-        message: `path is already registered: ${newPath}`,
-        fix: 'use `chalkbag unregister` first if you want to change its mode or providers',
-      });
+      if (e === newPath) {
+        throw new ChalkBagError({
+          kind: 'config',
+          file: newPath,
+          message: `path is already registered: ${newPath}`,
+          fix: 'use `chalkbag unregister` first if you want to change its mode or providers',
+        });
+      }
+
+      // New path is a child of an existing parent entry
+      if (existing.mode === 'parent' && isDescendant(e, newPath)) {
+        throw new ChalkBagError({
+          kind: 'config',
+          file: newPath,
+          message: `${newPath} is already covered by parent entry ${e}`,
+          fix: `unregister ${e}, or register ${newPath} with ignore patterns from the parent`,
+        });
+      }
+
+      // New parent entry would contain an existing entry
+      if (entry.mode === 'parent' && isDescendant(newPath, e)) {
+        throw new ChalkBagError({
+          kind: 'config',
+          file: newPath,
+          message: `parent ${newPath} would cover existing entry ${e}`,
+          fix: `unregister ${e} first, or choose a more specific parent`,
+        });
+      }
     }
 
-    // New path is a child of an existing parent entry
-    if (existing.mode === 'parent' && isDescendant(e, newPath)) {
-      throw new ChalkBagError({
-        kind: 'config',
-        file: newPath,
-        message: `${newPath} is already covered by parent entry ${e}`,
-        fix: `unregister ${e}, or register ${newPath} with ignore patterns from the parent`,
-      });
-    }
+    registry.paths.push({
+      ...entry,
+      path: newPath,
+      installedAt: new Date().toISOString(),
+      providers: [...new Set(entry.providers)].sort(),
+      ignore: [...new Set(entry.ignore)].sort(),
+    });
 
-    // New parent entry would contain an existing entry
-    if (entry.mode === 'parent' && isDescendant(newPath, e)) {
-      throw new ChalkBagError({
-        kind: 'config',
-        file: newPath,
-        message: `parent ${newPath} would cover existing entry ${e}`,
-        fix: `unregister ${e} first, or choose a more specific parent`,
-      });
-    }
-  }
-
-  registry.paths.push({
-    ...entry,
-    path: newPath,
-    installedAt: new Date().toISOString(),
-    providers: [...new Set(entry.providers)].sort(),
-    ignore: [...new Set(entry.ignore)].sort(),
+    await writeRegistry(registry);
   });
-
-  await writeRegistry(registry);
 }
 
 /**
@@ -208,15 +243,17 @@ export async function addPath(entry: Omit<WatchedPath, 'installedAt'>): Promise<
  * @returns `true` if the entry was found and removed; `false` if not found.
  */
 export async function removePath(target: string): Promise<boolean> {
-  const registry = await readRegistry();
-  const resolved = path.resolve(target);
-  const before = registry.paths.length;
-  registry.paths = registry.paths.filter((p) => path.resolve(p.path) !== resolved);
-  if (registry.paths.length === before) {
-    return false;
-  }
-  await writeRegistry(registry);
-  return true;
+  return withRegistryLock(async () => {
+    const registry = await readRegistry();
+    const resolved = path.resolve(target);
+    const before = registry.paths.length;
+    registry.paths = registry.paths.filter((p) => path.resolve(p.path) !== resolved);
+    if (registry.paths.length === before) {
+      return false;
+    }
+    await writeRegistry(registry);
+    return true;
+  });
 }
 
 /**

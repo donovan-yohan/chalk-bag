@@ -110,9 +110,9 @@ see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors
 This happens when a source file exists but cannot be read.
 
 ```
-error: resolved output path escapes repo root (kind: io, at ~/your-repo/.agents/subagents/escape.md)
+error: resolved output path escapes repo root (kind: config, at ~/your-repo/.agents/subagents/escape.md)
 fix: output paths must resolve inside the repo root; check for .. or absolute path segments in the source file
-see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#io
+see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#config
 ```
 
 This is a security guard that rejects output paths that would write outside the repo tree.

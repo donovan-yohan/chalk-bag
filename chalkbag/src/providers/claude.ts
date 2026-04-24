@@ -83,7 +83,7 @@ function renderMarkdownDocument(frontmatter: Record<string, unknown>, body: stri
 }
 
 function stripSubagentSourcePrefix(relativePath: string): string {
-  return relativePath.replace(/^\.agents\/subagents\//u, '');
+  return relativePath.replace(/^(imports:[^/]+\/)?\.agents\/subagents\//u, '');
 }
 
 function buildClaudePermissions(

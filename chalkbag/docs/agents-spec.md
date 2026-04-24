@@ -326,14 +326,14 @@ export type ProviderRenderContext = {
 ```ts
 export type GeneratedFile = {
   kind: 'file';
-  path: string;       // absolute output path
+  path: string;       // repo-relative output path (e.g. ".claude/agents/foo.md"); must not escape the repo root
   content: string;
   sourcePath: string; // source file that produced this output
 };
 
 export type GeneratedSymlink = {
   kind: 'symlink';
-  path: string;
+  path: string;       // repo-relative output path
   target: string;
   sourcePath: string;
 };

@@ -143,14 +143,22 @@ describe('buildAgentsRepo — end-to-end render', () => {
     expect(agentsMd).toContain('Test Repo');
   });
 
-  it('creates CLAUDE.md symlink pointing to AGENTS.md', async () => {
+  it('does NOT overwrite a pre-existing CLAUDE.md symlink for local (non-imported) AGENTS.md', async () => {
+    // For local tracked AGENTS.md, buildAgentsRepo does NOT emit CLAUDE.md —
+    // the symlink is the responsibility of scaffoldRepo / the user.
+    // This test verifies that an existing CLAUDE.md symlink (created by scaffold)
+    // is preserved by build and not clobbered.
     const repoDir = path.join(tmpDir, 'repo');
     fs.mkdirSync(repoDir);
     setupMinimalRepo(repoDir);
 
+    // Simulate what scaffoldRepo would create
+    const claudeMdPath = path.join(repoDir, 'CLAUDE.md');
+    fs.symlinkSync('AGENTS.md', claudeMdPath);
+
     await buildAgentsRepo(repoDir, { force: true, yes: true });
 
-    const claudeMdPath = path.join(repoDir, 'CLAUDE.md');
+    // Symlink must still exist and still point to AGENTS.md
     expect(fs.existsSync(claudeMdPath)).toBe(true);
     expect(fs.lstatSync(claudeMdPath).isSymbolicLink()).toBe(true);
     expect(fs.readlinkSync(claudeMdPath)).toBe('AGENTS.md');
@@ -320,5 +328,65 @@ describe('buildAgentsRepo — provider filtering', () => {
 
     const statePath = path.join(repoDir, '.agents', '.state.json');
     expect(fs.existsSync(statePath)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stripSubagentSourcePrefix (issue #11): subagent output path strips .agents/subagents/ prefix
+// ---------------------------------------------------------------------------
+
+describe('buildAgentsRepo — subagent output path stripping (issue #11)', () => {
+  it('subagent renders to .claude/agents/<name>.md (strips .agents/subagents/ prefix)', async () => {
+    const repoDir = path.join(tmpDir, 'subagent-strip-repo');
+    fs.mkdirSync(repoDir);
+    setupMinimalRepo(repoDir);
+
+    // Create a subagent in the .agents/subagents/ directory
+    const subagentsDir = path.join(repoDir, '.agents', 'subagents');
+    fs.mkdirSync(subagentsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(subagentsDir, 'code-reviewer.md'),
+      '---\nname: Code Reviewer\ndescription: Reviews code\n---\n\nI review code.\n',
+      'utf8',
+    );
+
+    await buildAgentsRepo(repoDir, { force: true, yes: true, providers: ['claude'] });
+
+    // The subagent should appear at .claude/agents/code-reviewer.md, NOT
+    // .claude/agents/.agents/subagents/code-reviewer.md
+    expect(fs.existsSync(path.join(repoDir, '.claude', 'agents', 'code-reviewer.md'))).toBe(true);
+    expect(fs.existsSync(path.join(repoDir, '.claude', 'agents', '.agents', 'subagents', 'code-reviewer.md'))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Render idempotence (issue #13): local AGENTS.md must not be overwritten
+// ---------------------------------------------------------------------------
+
+describe('buildAgentsRepo — AGENTS.md idempotence for tracked local file (issue #13)', () => {
+  it('running buildAgentsRepo twice on a repo with a tracked AGENTS.md does not prepend a banner', async () => {
+    const repoDir = path.join(tmpDir, 'idempotent-repo');
+    fs.mkdirSync(repoDir);
+    setupMinimalRepo(repoDir);
+
+    // Content before any build
+    const originalContent = fs.readFileSync(path.join(repoDir, 'AGENTS.md'), 'utf8');
+    expect(originalContent).toContain('Test Repo');
+
+    // First build
+    await buildAgentsRepo(repoDir, { force: true, yes: true });
+
+    // AGENTS.md must not have been rewritten (no banner should be prepended)
+    const contentAfterFirstBuild = fs.readFileSync(path.join(repoDir, 'AGENTS.md'), 'utf8');
+    expect(contentAfterFirstBuild).toBe(originalContent);
+    expect(contentAfterFirstBuild).not.toContain('Do not edit inline');
+
+    // Second build
+    await buildAgentsRepo(repoDir, { force: true, yes: true });
+
+    // Still unchanged
+    const contentAfterSecondBuild = fs.readFileSync(path.join(repoDir, 'AGENTS.md'), 'utf8');
+    expect(contentAfterSecondBuild).toBe(originalContent);
+    expect(contentAfterSecondBuild).not.toContain('Do not edit inline');
   });
 });

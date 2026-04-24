@@ -49,7 +49,7 @@ vi.mock('chokidar', () => ({
 // Mock buildAgentsRepo so we don't trigger real renders
 // ---------------------------------------------------------------------------
 
-const mockBuildAgentsRepo = vi.fn<[string, Record<string, unknown>?], Promise<{ warnings: string[]; wroteGitignore: boolean }>>()
+const mockBuildAgentsRepo = vi.fn<(path: string, opts?: Record<string, unknown>) => Promise<{ warnings: string[]; wroteGitignore: boolean }>>()
   .mockResolvedValue({ warnings: [], wroteGitignore: false });
 
 vi.mock('../src/render.js', () => ({

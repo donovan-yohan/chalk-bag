@@ -154,7 +154,10 @@ function renderOutputs(
     });
   }
 
-  if (repo.root) {
+  // Only emit root AGENTS.md/CLAUDE.md when the root came from an import.
+  // If root is a local tracked file, it is already correct on disk — writing
+  // a generated banner back to it would make every build modify the source-of-truth.
+  if (repo.root && repo.root.relativePath.startsWith('imports:')) {
     rendered.set('AGENTS.md', {
       kind: 'file',
       path: 'AGENTS.md',

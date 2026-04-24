@@ -33,9 +33,9 @@ const myProvider: Provider = {
 
     outputs.push({
       kind: 'file',
-      path: `${context.repo.repoRoot}/.myprovider/AGENTS.md`,
-      content: context.repo.agentsMd ?? '',
-      sourcePath: `${context.repo.repoRoot}/AGENTS.md`,
+      path: `.myprovider/AGENTS.md`,
+      content: context.repo.root?.body ?? '',
+      sourcePath: `.agents/AGENTS.md`,
     });
 
     return outputs;
@@ -162,14 +162,14 @@ export type ProviderRenderContext = {
 ```ts
 export type GeneratedFile = {
   kind: 'file';
-  path: string;       // absolute output path; must be inside the repo root
+  path: string;       // repo-relative output path (e.g. ".myprovider/foo.md"); must not escape the repo root
   content: string;
   sourcePath: string; // source file that produced this output (for attribution)
 };
 
 export type GeneratedSymlink = {
   kind: 'symlink';
-  path: string;       // absolute output path
+  path: string;       // repo-relative output path
   target: string;     // symlink target (relative path recommended)
   sourcePath: string;
 };
@@ -177,4 +177,4 @@ export type GeneratedSymlink = {
 export type GeneratedOutput = GeneratedFile | GeneratedSymlink;
 ```
 
-All output paths are validated before writing. A path that resolves outside the repo root will cause an `io` error and abort the build. See [errors.md — io](./errors.md#io).
+All output paths are validated before writing. A path that resolves outside the repo root will cause a `config` error and abort the build. See [errors.md — config](./errors.md#config).

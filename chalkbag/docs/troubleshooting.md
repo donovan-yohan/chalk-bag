@@ -129,7 +129,7 @@ For setup instructions, see [onboarding.md](./onboarding.md).
 
 4. Run `chalkbag build --yes` to ensure all generated outputs are up to date.
 
-**Note:** `CLAUDE.md` is a tracked symlink. It is not a chalkbag output — chalkbag does not create or manage it. You need to maintain it manually.
+**Note:** `CLAUDE.md` is managed by chalkbag as a symlink pointing to `AGENTS.md`. `chalkbag scaffold` creates it on first setup, and `chalkbag build` maintains it as a generated output. If it is missing or broken, run `chalkbag scaffold` or `chalkbag build --yes` to restore it.
 
 ---
 

@@ -46,14 +46,22 @@ export async function scaffoldRepo(
   const skipped: string[] = [];
   const wouldCreate: string[] = [];
 
+  // Check if providers.yaml already exists (user-modified) BEFORE template copy
+  const providersPath = path.join(agentsDir, 'providers.yaml');
+  const providersExistedBefore = await pathExists(providersPath);
+
   await copyTemplateTree(templateRoot, agentsDir, created, skipped, wouldCreate, options.dryRun);
 
-  const providersPath = path.join(agentsDir, 'providers.yaml');
   if (options.providers && options.providers.length > 0) {
-    if (!options.dryRun) {
-      await patchProviders(providersPath, options.providers);
+    if (providersExistedBefore) {
+      // User already has a providers.yaml — skip to avoid clobbering edits
+      skipped.push('providers.yaml');
+    } else {
+      // Fresh scaffold: patch the freshly-copied template providers.yaml
+      if (!options.dryRun) await patchProviders(providersPath, options.providers);
+      // providers.yaml was already counted in created/wouldCreate by copyTemplateTree
+      // (the template copied it); no need to push again
     }
-    wouldCreate.push('providers.yaml');
   }
 
   const agentsMdPath = path.join(targetRoot, 'AGENTS.md');
