@@ -1,0 +1,191 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import YAML from 'yaml';
+
+import type { LoadedAgentsRepo } from '../spec/load.js';
+import type { GeneratedOutput, Provider } from './_plugin.js';
+
+const opencodeProvider = {
+  id: 'opencode',
+  displayName: 'OpenCode',
+  render(context) {
+    if (!context.enabledProviders.includes('opencode')) {
+      return [];
+    }
+
+    const files: GeneratedOutput[] = [];
+
+    for (const agent of context.repo.subagents) {
+      if (!supportsProvider(agent.frontmatter.targets, 'opencode')) {
+        continue;
+      }
+
+      const relativeOutputPath = stripSubagentSourcePrefix(agent.relativePath);
+      files.push({
+        kind: 'file',
+        path: `.opencode/agents/${relativeOutputPath}`,
+        content: renderMarkdownDocument(agent.frontmatter, agent.body),
+        sourcePath: agent.relativePath,
+      });
+    }
+
+    const permissionConfig = buildOpencodePermissionConfig(context.repo);
+    const existingPermission = readExistingPermission(context.repo.scope.outputRoot);
+    const merged = mergePermissions(existingPermission, permissionConfig);
+
+    files.push({
+      kind: 'file',
+      path: 'opencode.json',
+      content: `${JSON.stringify({ permission: merged }, null, 2)}\n`,
+      sourcePath: '.agents/permissions.yaml',
+    });
+
+    return files;
+  },
+} satisfies Provider;
+
+export default opencodeProvider;
+
+function supportsProvider(targets: string[] | undefined, providerId: string): boolean {
+  return targets === undefined ? true : targets.includes(providerId);
+}
+
+function renderMarkdownDocument(frontmatter: Record<string, unknown>, body: string): string {
+  const sanitized = Object.fromEntries(
+    Object.entries(frontmatter)
+      .filter(([key, value]) => key !== 'targets' && value !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right)),
+  );
+
+  if (Object.keys(sanitized).length === 0) {
+    return `${body.trimEnd()}\n`;
+  }
+
+  return `---\n${YAML.stringify(sanitized).trimEnd()}\n---\n\n${body.trimEnd()}\n`;
+}
+
+function stripSubagentSourcePrefix(relativePath: string): string {
+  return relativePath.replace(/^\.agents\/subagents\//u, '');
+}
+
+function buildOpencodePermissionConfig(
+  repo: LoadedAgentsRepo,
+): Record<string, unknown> {
+  const permissions = repo.permissions;
+  const output: Record<string, unknown> = {};
+
+  setMode(output, '*', permissions?.defaultMode);
+  if (!permissions) {
+    return output;
+  }
+
+  setPermissionGroup(output, 'bash', permissions.bash);
+  setPermissionGroup(output, 'read', permissions.read);
+  setPermissionGroup(output, 'edit', permissions.write);
+  setPermissionGroup(output, 'webfetch', permissions.webfetch);
+
+  if (permissions.mcp) {
+    const mergedMcp: Record<string, string> = {};
+    appendPermissionPairs(mergedMcp, permissions.mcp.allow, 'allow');
+    appendPermissionPairs(mergedMcp, permissions.mcp.deny, 'deny');
+    for (const [pattern, mode] of Object.entries(mergedMcp)) {
+      output[pattern] = mode;
+    }
+  }
+
+  return output;
+}
+
+type PermissionRuleBlock = { allow?: string[]; deny?: string[]; ask?: string[] };
+
+function setPermissionGroup(
+  permissionConfig: Record<string, unknown>,
+  key: 'bash' | 'read' | 'edit' | 'webfetch' | string,
+  rules: PermissionRuleBlock | undefined,
+): void {
+  if (!rules) {
+    return;
+  }
+
+  const group: Record<string, string> = {};
+  appendPermissionPairs(group, rules.allow, 'allow');
+  appendPermissionPairs(group, rules.ask, 'ask');
+  appendPermissionPairs(group, rules.deny, 'deny');
+
+  if (Object.keys(group).length > 0) {
+    permissionConfig[key] = sortPermissionGroup(group);
+  }
+}
+
+function appendPermissionPairs(group: Record<string, string>, patterns: string[] | undefined, mode: 'allow' | 'deny' | 'ask'): void {
+  if (!patterns || patterns.length === 0) {
+    return;
+  }
+
+  const sortedPatterns = [...new Set(patterns)].sort(sortPatternsForLastMatchWins);
+  for (const pattern of sortedPatterns) {
+    group[pattern] = mode;
+  }
+}
+
+function setMode(permissionConfig: Record<string, unknown>, key: string, value: string | undefined): void {
+  if (!value) {
+    return;
+  }
+  permissionConfig[key] = value;
+}
+
+function readExistingPermission(repoRoot: string): Record<string, unknown> {
+  try {
+    const raw = fs.readFileSync(path.join(repoRoot, 'opencode.json'), 'utf8');
+    const parsed = JSON.parse(raw) as { permission?: unknown };
+    return typeof parsed.permission === 'object' && parsed.permission !== null ? (parsed.permission as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function mergePermissions(
+  existing: Record<string, unknown>,
+  generated: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...existing };
+
+  for (const [key, value] of Object.entries(generated)) {
+    merged[key] = value;
+  }
+
+  return merged;
+}
+
+function sortPermissionGroup(permissionGroup: Record<string, string>): Record<string, string> {
+  const sortedEntries = Object.entries(permissionGroup).sort(([left], [right]) => {
+    const order = patternOrderComparator(left, right);
+    if (order !== 0) {
+      return order;
+    }
+    return left.localeCompare(right);
+  });
+
+  return Object.fromEntries(sortedEntries);
+}
+
+function sortPatternsForLastMatchWins(left: string, right: string): number {
+  return patternOrderComparator(left, right);
+}
+
+function patternOrderComparator(left: string, right: string): number {
+  const leftHasWildcard = left.includes('*');
+  const rightHasWildcard = right.includes('*');
+  if (leftHasWildcard !== rightHasWildcard) {
+    return leftHasWildcard ? -1 : 1;
+  }
+
+  const leftSegments = left.split('/').filter(Boolean).length;
+  const rightSegments = right.split('/').filter(Boolean).length;
+  if (leftSegments !== rightSegments) {
+    return leftSegments - rightSegments;
+  }
+
+  return left.length - right.length;
+}

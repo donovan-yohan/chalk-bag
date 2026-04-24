@@ -1,9 +1,25 @@
 # chalk-bag
 
-Reusable agent skills for structured software development workflows. Two plugins:
+Reusable agent skills for structured software development workflows, plus a standalone CLI for compiling per-provider AI configs.
 
+- **chalkbag** — Standalone CLI: compiles `.agents/` source trees into per-provider configs (`.claude/`, `.codex/`, `.opencode/`)
 - **harness** — Documentation lifecycle management with self-improving review agents
 - **pr** — Pull request lifecycle automation
+
+## Standalone CLIs
+
+### chalkbag
+
+A global CLI that compiles a tracked `.agents/` source tree into gitignored per-provider configs and registers watched paths with a background launchd daemon for incremental rebuilds.
+
+```bash
+npm i -g chalkbag
+cd ~/your-repo && chalkbag init
+```
+
+See [chalkbag/README.md](chalkbag/README.md) for install, quickstart, CLI reference, daemon lifecycle, and the "Why not X?" section.
+
+**Providers:** Claude (`.claude/`), Codex (`.codex/`), opencode (`opencode.json`)
 
 ## Plugins
 
