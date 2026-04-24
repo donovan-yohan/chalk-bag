@@ -1,0 +1,59 @@
+chalkbag/tests/imports.test.ts
+  b7901de65aa7a4be 1-5,8,10-11,70-194
+chalkbag/src/imports/merge.ts
+  b7901de65aa7a4be 107-108,110-111,113,118,126
+chalkbag/src/commands/scaffold.ts
+  b7901de65aa7a4be 49-52,56-63
+chalkbag/src/imports/cache.ts
+  b7901de65aa7a4be 22,24,28-29,57-59
+chalkbag/src/providers/opencode.ts
+  b7901de65aa7a4be 6,69-84,93-96,167-170,178-184
+chalkbag/docs/agents-spec.md
+  b7901de65aa7a4be 329,336
+chalkbag/src/picomatch.d.ts
+  b7901de65aa7a4be 2,4
+chalkbag/src/daemon/launchd.ts
+  b7901de65aa7a4be 4,223,242
+chalkbag/docs/errors.md
+  b7901de65aa7a4be 113,115
+chalkbag/tests/render.test.ts
+  b7901de65aa7a4be 146-150,155-158,161,333-392
+chalkbag/package.json
+  b7901de65aa7a4be 29-31
+chalkbag/src/daemon/registry.ts
+  b7901de65aa7a4be 147-179,191-193,195-196,198-205,207-215,217-225,228-234,236-237,246-256
+chalkbag/src/imports/resolve.ts
+  b7901de65aa7a4be 30-35
+chalkbag/src/render.ts
+  b7901de65aa7a4be 157-160
+chalkbag/docs/troubleshooting.md
+  b7901de65aa7a4be 132
+chalkbag/docs/extending.md
+  b7901de65aa7a4be 36-38,165,172,180
+chalkbag/src/providers/claude.ts
+  b7901de65aa7a4be 86
+chalkbag/tests/watcher.test.ts
+  b7901de65aa7a4be 52
+chalkbag/src/daemon/entry.ts
+  b7901de65aa7a4be 39-46,48,50-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "de0196209d78e5732d6f5a5570778714fee0625c",
+  "prompts": {
+    "b7901de65aa7a4be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8494ec73-ebbe-46a2-a1c5-04b26948997a",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Donovan Yohan",
+      "messages": [],
+      "total_additions": 400,
+      "total_deletions": 4396,
+      "accepted_lines": 4605,
+      "overriden_lines": 0
+    }
+  }
+}
