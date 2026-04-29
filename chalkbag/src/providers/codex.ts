@@ -37,7 +37,7 @@ const codexProvider = {
       });
     }
 
-    const config = buildCodexConfig(context.repo);
+    const config = buildCodexConfig(context.repo, context.reportWarning);
     if (config.length > 0) {
       files.push({
         kind: 'file',
@@ -202,6 +202,7 @@ function translateCodexPrefix(pattern: string): string | null {
 
 function buildCodexConfig(
   repo: LoadedAgentsRepo,
+  reportWarning: (warning: string) => void,
 ): string[] {
   const permissions = repo.permissions;
   const sandboxMode = permissions?.sandbox?.mode ?? 'read-only';
@@ -220,14 +221,7 @@ function buildCodexConfig(
     configLines.push(`network_access = ${String(networkAccess)}`);
   }
 
-  if (permissions?.read || permissions?.write || permissions?.webfetch || permissions?.mcp) {
-    const include = readFilesystemSection(repo.permissions);
-    if (include.length > 0) {
-      configLines.push('');
-      configLines.push(`[permissions.default.filesystem]`);
-      configLines.push(...include);
-    }
-  }
+  warnIfPermissionsUntranslatable(permissions, reportWarning);
 
   configLines.push('');
   configLines.push(`[projects.${pathToTomlQuoted(projectName)}]`);
@@ -256,40 +250,40 @@ function mapApprovalPolicy(mode: string | undefined): string {
   }
 }
 
-function readFilesystemSection(permissions: LoadedAgentsRepo['permissions']): string[] {
-  const lines: string[] = [];
-
-  const addList = (key: string, values: string[] | undefined): void => {
-    if (!values || values.length === 0) {
-      return;
-    }
-
-    const unique = [...new Set(values)];
-    lines.push(`${key} = [${unique.map(pathToTomlQuoted).join(', ')}]`);
-  };
-
-  if (permissions?.read?.allow) {
-    addList('read', permissions.read.allow);
+// Codex's `[permissions.<profile>]` schema doesn't map cleanly onto the
+// claude-style read/write/webfetch glob lists used by chalkbag's
+// permissions.yaml. Two specific gaps:
+//   - top-level `[permissions.<p>.filesystem]` rejects relative path keys
+//     (must be absolute, `~/...`, or `:...`)
+//   - per-subpath `"path" = "write"` entries are rejected by the codex
+//     runtime until FileSystemSandboxPolicy is implemented directly
+//     (codex-rs/protocol/src/permissions.rs:1068-1075)
+// The result: any reasonable translation either fails to parse, fails at
+// runtime, or silently overshoots intent. We instead emit a warning and
+// let the user configure codex permissions manually. sandbox_mode +
+// approval_policy still cover the basic cwd-write case.
+function warnIfPermissionsUntranslatable(
+  permissions: LoadedAgentsRepo['permissions'],
+  reportWarning: (warning: string) => void,
+): void {
+  if (!permissions) return;
+  const hasFs =
+    (permissions.read?.allow?.length ?? 0) > 0 ||
+    (permissions.read?.deny?.length ?? 0) > 0 ||
+    (permissions.write?.allow?.length ?? 0) > 0 ||
+    (permissions.write?.deny?.length ?? 0) > 0;
+  const hasWeb =
+    (permissions.webfetch?.allow?.length ?? 0) > 0 ||
+    (permissions.webfetch?.deny?.length ?? 0) > 0;
+  if (hasFs) {
+    reportWarning(
+      'filesystem permissions in permissions.yaml were not translated; codex schema does not accept relative-path glob lists. Configure [permissions.<profile>.filesystem] manually if needed.',
+    );
   }
-  if (permissions?.read?.deny) {
-    addList('read_deny', permissions.read.deny);
+  if (hasWeb) {
+    reportWarning(
+      'webfetch permissions in permissions.yaml were not translated; configure [permissions.<profile>.network.domains] manually if needed.',
+    );
   }
-  if (permissions?.write?.allow) {
-    addList('write', permissions.write.allow);
-  }
-  if (permissions?.write?.deny) {
-    addList('write_deny', permissions.write.deny);
-  }
-  if (permissions?.webfetch?.allow) {
-    addList('webfetch_allow', permissions.webfetch.allow);
-  }
-  if (permissions?.webfetch?.deny) {
-    addList('webfetch_deny', permissions.webfetch.deny);
-  }
-
-  if (lines.length === 0) {
-    return [];
-  }
-
-  return lines;
 }
+
