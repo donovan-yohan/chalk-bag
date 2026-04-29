@@ -1,0 +1,40 @@
+chalkbag/src/providers/codex.ts
+  34ab0c879a98c82b 178-184
+chalkbag/src/daemon/launchd.ts
+  34ab0c879a98c82b 170
+chalkbag/tests/launchd.test.ts
+  34ab0c879a98c82b 45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "efeee4cb304a35750f8b0b9a4712fd6598f8d4af",
+  "prompts": {
+    "34ab0c879a98c82b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b9b12f1-c1df-4a52-91fd-4305f41ca95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Donovan Yohan",
+      "messages": [],
+      "total_additions": 485,
+      "total_deletions": 32,
+      "accepted_lines": 9,
+      "overriden_lines": 0
+    },
+    "b7901de65aa7a4be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8494ec73-ebbe-46a2-a1c5-04b26948997a",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Donovan Yohan",
+      "messages": [],
+      "total_additions": 352,
+      "total_deletions": 4,
+      "accepted_lines": 4296,
+      "overriden_lines": 44
+    }
+  }
+}
