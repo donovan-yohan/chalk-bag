@@ -14,7 +14,6 @@ import { getLaunchdPlistPath, getLogDir, getConfigHome } from './registry.js';
  */
 export function buildLaunchdPlist(options: {
   nodePath: string;
-  tsxPath: string;
   entryPath: string;
   configHome: string;
 }): string {
@@ -30,7 +29,6 @@ export function buildLaunchdPlist(options: {
     <key>ProgramArguments</key>
     <array>
       <string>${escapeXml(options.nodePath)}</string>
-      <string>${escapeXml(options.tsxPath)}</string>
       <string>${escapeXml(options.entryPath)}</string>
     </array>
     <key>EnvironmentVariables</key>
@@ -166,11 +164,10 @@ export async function getLaunchdStatus(): Promise<string> {
  */
 export async function buildDefaultLaunchdPlist(): Promise<string> {
   const nodePath = process.execPath;
-  const tsxPath = await resolveTsxPath();
   const entryPath = resolveEntryPath();
   const configHome = getConfigHome();
 
-  return buildLaunchdPlist({ nodePath, tsxPath, entryPath, configHome });
+  return buildLaunchdPlist({ nodePath, entryPath, configHome });
 }
 
 // ---------------------------------------------------------------------------
@@ -212,28 +209,6 @@ function escapeXml(value: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&apos;');
-}
-
-async function resolveTsxPath(): Promise<string> {
-  // tsx is typically at <node_modules>/.bin/tsx relative to this package
-  const candidates = [
-    // Installed globally via npm — tsx next to node
-    path.join(path.dirname(process.execPath), 'tsx'),
-    // Local node_modules (dev mode)
-    fileURLToPath(new URL('../../../node_modules/.bin/tsx', import.meta.url)),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      await fs.promises.access(candidate, fs.constants.X_OK);
-      return candidate;
-    } catch {
-      // try next candidate
-    }
-  }
-
-  // Fallback: assume tsx is on PATH
-  return 'tsx';
 }
 
 function resolveEntryPath(): string {

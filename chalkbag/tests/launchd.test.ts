@@ -5,7 +5,6 @@ import { ChalkBagError } from '../src/types.js';
 
 const defaultOptions = {
   nodePath: '/usr/local/bin/node',
-  tsxPath: '/usr/local/bin/tsx',
   entryPath: '/usr/local/lib/chalkbag/dist/daemon/entry.js',
   configHome: '/Users/testuser/.config/chalkbag',
 };
@@ -43,10 +42,9 @@ describe('buildLaunchdPlist — required content', () => {
     expect(plist).toContain('</plist>');
   });
 
-  it('embeds nodePath, tsxPath, entryPath in ProgramArguments', () => {
+  it('embeds nodePath, entryPath in ProgramArguments', () => {
     const plist = buildLaunchdPlist(defaultOptions);
     expect(plist).toContain(defaultOptions.nodePath);
-    expect(plist).toContain(defaultOptions.tsxPath);
     expect(plist).toContain(defaultOptions.entryPath);
   });
 
@@ -141,7 +139,6 @@ describe('buildLaunchdPlist — snapshot', () => {
   it('matches expected plist structure', () => {
     const plist = buildLaunchdPlist({
       nodePath: '/usr/local/bin/node',
-      tsxPath: '/usr/local/bin/tsx',
       entryPath: '/usr/local/lib/chalkbag/dist/daemon/entry.js',
       configHome: '/Users/alice/.config/chalkbag',
     });
@@ -156,7 +153,6 @@ describe('buildLaunchdPlist — snapshot', () => {
     <key>ProgramArguments</key>
     <array>
       <string>/usr/local/bin/node</string>
-      <string>/usr/local/bin/tsx</string>
       <string>/usr/local/lib/chalkbag/dist/daemon/entry.js</string>
     </array>
     <key>EnvironmentVariables</key>

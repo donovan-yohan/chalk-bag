@@ -175,7 +175,13 @@ function appendBashRules(
       continue;
     }
 
-    lines.push(`prefix_rule("${translated}", ${bucket})`);
+    const tokens = translated.split(/\s+/u).filter(Boolean);
+    if (tokens.length === 0) {
+      reportWarning(`codex could not tokenize bash pattern ${JSON.stringify(pattern)}`);
+      continue;
+    }
+    const tokenList = tokens.map((t) => JSON.stringify(t)).join(', ');
+    lines.push(`prefix_rule(pattern = [${tokenList}], decision = "${bucket}")`);
   }
 }
 
