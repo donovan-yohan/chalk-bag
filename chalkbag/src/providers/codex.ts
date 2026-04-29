@@ -215,13 +215,20 @@ function buildCodexConfig(
   configLines.push(`sandbox_mode = ${pathToTomlQuoted(sandboxMode)}`);
   configLines.push(`approval_policy = ${pathToTomlQuoted(approvalPolicy)}`);
 
-  if (sandboxMode === 'workspace-write') {
+  const permsBlock = buildCodexPermissionsBlock(permissions, reportWarning);
+
+  if (permsBlock.lines.length > 0) {
+    // A custom profile (`default`) is used. The built-in `:workspace`
+    // profile is bypassed, so [sandbox_workspace_write] tweaks become
+    // dead weight and would be misleading — omit them.
+    configLines.push('default_permissions = "default"');
+    configLines.push('');
+    configLines.push(...permsBlock.lines);
+  } else if (sandboxMode === 'workspace-write') {
     configLines.push('');
     configLines.push('[sandbox_workspace_write]');
     configLines.push(`network_access = ${String(networkAccess)}`);
   }
-
-  warnIfPermissionsUntranslatable(permissions, reportWarning);
 
   configLines.push('');
   configLines.push(`[projects.${pathToTomlQuoted(projectName)}]`);
@@ -250,40 +257,162 @@ function mapApprovalPolicy(mode: string | undefined): string {
   }
 }
 
-// Codex's `[permissions.<profile>]` schema doesn't map cleanly onto the
-// claude-style read/write/webfetch glob lists used by chalkbag's
-// permissions.yaml. Two specific gaps:
-//   - top-level `[permissions.<p>.filesystem]` rejects relative path keys
-//     (must be absolute, `~/...`, or `:...`)
-//   - per-subpath `"path" = "write"` entries are rejected by the codex
-//     runtime until FileSystemSandboxPolicy is implemented directly
-//     (codex-rs/protocol/src/permissions.rs:1068-1075)
-// The result: any reasonable translation either fails to parse, fails at
-// runtime, or silently overshoots intent. We instead emit a warning and
-// let the user configure codex permissions manually. sandbox_mode +
-// approval_policy still cover the basic cwd-write case.
-function warnIfPermissionsUntranslatable(
+// Translate the shared permissions schema into a codex custom profile
+// (`[permissions.default]`). Returns an empty list when the user hasn't
+// configured anything beyond sandbox_mode/approval_policy.
+//
+// Strategy (validated against codex schema + runtime guards):
+//   - filesystem rules live under `[permissions.default.filesystem.":project_roots"]`
+//   - workspace write is granted via the special `"." = "write"` key which
+//     compiles to `:project_roots` (subpath=None) and sets
+//     `workspace_root_writable = true` — the only form that survives the
+//     runtime guard at codex-rs/protocol/src/permissions.rs:1068
+//   - deny globs (read.deny ∪ write.deny) emit as `"<glob>" = "none"` —
+//     scoped tables only accept `none` for glob patterns
+//   - read.allow is dropped (codex has no glob read-allow concept; sandboxed
+//     write already implies read across the project)
+//   - auto-protect `.git`, `.codex`, `.agents` since the custom profile
+//     loses the built-in `:workspace` profile's automatic protections
+//   - network rules under `[permissions.default.network]` with explicit
+//     `enabled = true` — required to activate the domain table
+//   - mcp rules drop with a warning (no codex equivalent)
+function buildCodexPermissionsBlock(
   permissions: LoadedAgentsRepo['permissions'],
   reportWarning: (warning: string) => void,
-): void {
-  if (!permissions) return;
-  const hasFs =
-    (permissions.read?.allow?.length ?? 0) > 0 ||
-    (permissions.read?.deny?.length ?? 0) > 0 ||
-    (permissions.write?.allow?.length ?? 0) > 0 ||
-    (permissions.write?.deny?.length ?? 0) > 0;
-  const hasWeb =
-    (permissions.webfetch?.allow?.length ?? 0) > 0 ||
-    (permissions.webfetch?.deny?.length ?? 0) > 0;
-  if (hasFs) {
+): { lines: string[] } {
+  if (!permissions) {
+    return { lines: [] };
+  }
+
+  const lines: string[] = [];
+
+  const fsLines = buildCodexFilesystemSection(permissions, reportWarning);
+  const networkLines = buildCodexNetworkSection(permissions, reportWarning);
+
+  if (fsLines.length === 0 && networkLines.length === 0) {
+    return { lines: [] };
+  }
+
+  if (fsLines.length > 0) {
+    lines.push(...fsLines);
+  }
+  if (networkLines.length > 0) {
+    if (lines.length > 0) lines.push('');
+    lines.push(...networkLines);
+  }
+
+  return { lines };
+}
+
+const CODEX_AUTO_PROTECT_PATHS = ['.git', '.codex', '.agents'];
+
+function buildCodexFilesystemSection(
+  permissions: LoadedAgentsRepo['permissions'],
+  reportWarning: (warning: string) => void,
+): string[] {
+  const writeAllow = permissions?.write?.allow ?? [];
+  const readAllow = permissions?.read?.allow ?? [];
+  const denyEntries: string[] = [];
+  const seenDeny = new Set<string>();
+
+  const normalizeDeny = (raw: string): string | null => {
+    let p = raw.trim();
+    if (p.startsWith('./')) p = p.slice(2);
+    return p.length === 0 ? null : p;
+  };
+
+  for (const raw of [...(permissions?.read?.deny ?? []), ...(permissions?.write?.deny ?? [])]) {
+    const p = normalizeDeny(raw);
+    if (p !== null && !seenDeny.has(p)) {
+      seenDeny.add(p);
+      denyEntries.push(p);
+    }
+  }
+
+  const hasAnyFs =
+    writeAllow.length > 0 || readAllow.length > 0 || denyEntries.length > 0;
+  if (!hasAnyFs) {
+    return [];
+  }
+
+  if (readAllow.length > 0) {
     reportWarning(
-      'filesystem permissions in permissions.yaml were not translated; codex schema does not accept relative-path glob lists. Configure [permissions.<profile>.filesystem] manually if needed.',
+      'read.allow globs are not translated to codex; sandboxed writes already grant read across :project_roots',
     );
   }
-  if (hasWeb) {
-    reportWarning(
-      'webfetch permissions in permissions.yaml were not translated; configure [permissions.<profile>.network.domains] manually if needed.',
-    );
+
+  const lines: string[] = [];
+  lines.push('[permissions.default.filesystem.":project_roots"]');
+
+  // Workspace write — uses the `"." = "write"` shorthand which the codex
+  // config compiler treats as bare :project_roots (subpath=None).
+  if (writeAllow.length > 0) {
+    lines.push('"." = "write"');
   }
+
+  // Auto-protect well-known sensitive dirs since the custom profile
+  // loses the built-in `:workspace` protections.
+  for (const p of CODEX_AUTO_PROTECT_PATHS) {
+    if (!seenDeny.has(p)) {
+      lines.push(`${pathToTomlQuoted(p)} = "none"`);
+    }
+  }
+
+  for (const p of denyEntries) {
+    lines.push(`${pathToTomlQuoted(p)} = "none"`);
+  }
+
+  return lines;
+}
+
+function buildCodexNetworkSection(
+  permissions: LoadedAgentsRepo['permissions'],
+  reportWarning: (warning: string) => void,
+): string[] {
+  const stripDomainPrefix = (raw: string): string =>
+    raw.startsWith('domain:') ? raw.slice('domain:'.length) : raw;
+
+  const isCodexValidHostPattern = (host: string): boolean => {
+    // Codex accepts exact hosts (`github.com`) or scoped wildcards
+    // (`*.example.com`, `**.example.com`). Bare `*` is rejected.
+    if (host === '*' || host.length === 0) return false;
+    if (host.startsWith('*.') || host.startsWith('**.')) {
+      return host.slice(host.indexOf('.') + 1).length > 0;
+    }
+    return !host.includes('*');
+  };
+
+  const domains = new Map<string, 'allow' | 'deny'>();
+  const collect = (rawList: string[] | undefined, mode: 'allow' | 'deny'): void => {
+    for (const raw of rawList ?? []) {
+      const host = stripDomainPrefix(raw.trim());
+      if (!isCodexValidHostPattern(host)) {
+        reportWarning(
+          `webfetch ${mode} pattern ${JSON.stringify(raw)} not translated to codex; expected exact host or scoped wildcard (e.g. *.example.com). With network.enabled = true, unlisted hosts are denied by default.`,
+        );
+        continue;
+      }
+      domains.set(host, mode);
+    }
+  };
+  collect(permissions?.webfetch?.allow, 'allow');
+  collect(permissions?.webfetch?.deny, 'deny');
+
+  if (domains.size === 0) {
+    return [];
+  }
+
+  const lines: string[] = [];
+  lines.push('[permissions.default.network]');
+  // `enabled = true` is required for the domain table to actually
+  // restrict outbound network on a custom profile. With it, hosts not
+  // listed in the domains table are denied by default.
+  lines.push('enabled = true');
+  lines.push('');
+  lines.push('[permissions.default.network.domains]');
+  for (const [host, mode] of domains) {
+    lines.push(`${pathToTomlQuoted(host)} = "${mode}"`);
+  }
+  return lines;
 }
 
