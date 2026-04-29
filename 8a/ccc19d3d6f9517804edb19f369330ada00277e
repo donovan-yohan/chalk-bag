@@ -1,0 +1,23 @@
+chalkbag/src/providers/codex.ts
+  34ab0c879a98c82b 218-227,260-279,282-335,337-338,340,343-416
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "8accc19d3d6f9517804edb19f369330ada00277e",
+  "prompts": {
+    "34ab0c879a98c82b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b9b12f1-c1df-4a52-91fd-4305f41ca95f",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Donovan Yohan",
+      "messages": [],
+      "total_additions": 169,
+      "total_deletions": 40,
+      "accepted_lines": 376,
+      "overriden_lines": 0
+    }
+  }
+}
