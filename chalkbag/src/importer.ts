@@ -9,7 +9,7 @@ export type ImportAgentsResult = {
 };
 
 export async function importAgentsRepo(repoRoot: string): Promise<ImportAgentsResult> {
-  const agentsRoot = path.join(repoRoot, '.agents');
+  const agentsRoot = path.join(repoRoot, '.chalk');
   const subagentsRoot = path.join(agentsRoot, 'subagents');
   const legacyAgentsRoot = path.join(repoRoot, '.claude', 'agents');
 
@@ -76,7 +76,7 @@ export async function importAgentsRepo(repoRoot: string): Promise<ImportAgentsRe
       console.log(`  warning: ${warning}`);
     }
     for (const conflict of conflicts) {
-      console.log(`  scoped agent found: ${conflict} (review and move to .agents/subagents/ if needed)`);
+      console.log(`  scoped agent found: ${conflict} (review and move to .chalk/subagents/ if needed)`);
     }
   } else {
     console.log('chalkbag import: ok');
@@ -189,6 +189,7 @@ async function pathExists(targetPath: string): Promise<boolean> {
 
 const IGNORED_CONFLICT_SCAN_DIRS = new Set([
   '.agents',
+  '.chalk',
   '.claude',
   '.codex',
   '.gemini',

@@ -27,7 +27,7 @@ export async function installGitHooks(repoRoot: string): Promise<void> {
 
     const nextContent = existing.trim().length === 0
       ? buildStandaloneHookBlock()
-      : `${existing.replace(/\s*$/u, '\n')}\n${buildAppendedHookBlock()}`;
+      : `${existing.replace(/\s*$/u, '\n')}\n${buildAppendedHookBlock()}\n`;
 
     await fs.promises.writeFile(hookPath, nextContent, { encoding: 'utf8', mode: 0o755 });
   }
@@ -97,7 +97,7 @@ export async function runGitHook(
 }
 
 async function agentsTreeChangedSince(repoRoot: string, timestamp: number): Promise<boolean> {
-  return directoryChangedSince(path.join(repoRoot, '.agents'), timestamp);
+  return directoryChangedSince(path.join(repoRoot, '.chalk'), timestamp);
 }
 
 async function directoryChangedSince(directory: string, timestamp: number): Promise<boolean> {
@@ -134,7 +134,11 @@ function buildAppendedHookBlock(): string {
 }
 
 function buildHookInvocation(): string {
+  // Best-effort: skip silently if binary missing. Wrapped so a chalkbag
+  // failure can't mask exit codes from earlier hook steps under set -e.
   return `${MARKER}
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-chalkbag internal hook-run "$repo_root" >/dev/null || true`;
+if command -v chalkbag >/dev/null 2>&1; then
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+  chalkbag internal hook-run "$repo_root" >/dev/null 2>&1 || true
+fi`;
 }

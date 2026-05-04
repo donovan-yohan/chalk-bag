@@ -5,7 +5,7 @@
  * Implements the "simpler mock-based" variant from Phase 5 plan:
  * - Mocks chokidar and asserts `ignored` function behavior for node_modules/.git
  * - Asserts `depth: 2` is passed
- * - Verifies a 4-deep nested .agents/ would NOT be caught (depth cap)
+ * - Verifies a 4-deep nested .chalk/ would NOT be caught (depth cap)
  *
  * Platform-specific fd-count assertions (linux /proc/self/fd) are skipped
  * on darwin per the plan.
@@ -142,12 +142,12 @@ describe('startParentWatcher — ignored function behavior', () => {
     // Files inside dist won't be individually checked once the dir is blocked.
   });
 
-  it('ignored function returns false for .agents paths', () => {
+  it('ignored function returns false for .chalk paths', () => {
     startParentWatcher(tmpDir);
     const ignoredFn = capturedOptions['ignored'] as (p: string) => boolean;
 
-    expect(ignoredFn(path.join(tmpDir, 'myrepo', '.agents'))).toBe(false);
-    expect(ignoredFn(path.join(tmpDir, 'myrepo', '.agents', 'providers.yaml'))).toBe(false);
+    expect(ignoredFn(path.join(tmpDir, 'myrepo', '.chalk'))).toBe(false);
+    expect(ignoredFn(path.join(tmpDir, 'myrepo', '.chalk', 'providers.yaml'))).toBe(false);
   });
 
   it('ignored function returns false for src/ paths', () => {
@@ -193,32 +193,32 @@ describe('startParentWatcher — depth cap (eng H-1)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Depth-2 boundary: 4-deep nested .agents/ does NOT trigger a build
+// Depth-2 boundary: 4-deep nested .chalk/ does NOT trigger a build
 // ---------------------------------------------------------------------------
 
-describe('startParentWatcher — depth boundary: 4-deep .agents/ is unreachable', () => {
-  it('does NOT fire for a 4-deep nested .agents/ because chokidar depth:2 would not reach it', async () => {
+describe('startParentWatcher — depth boundary: 4-deep .chalk/ is unreachable', () => {
+  it('does NOT fire for a 4-deep nested .chalk/ because chokidar depth:2 would not reach it', async () => {
     // Depth 2 means: <parent>/<child>/<subdir> is the deepest reachable event.
-    // A 4-deep path is: <parent>/<child>/<sub1>/<sub2>/.agents/providers.yaml
+    // A 4-deep path is: <parent>/<child>/<sub1>/<sub2>/.chalk/providers.yaml
     // At depth:2 chokidar would not emit events at that depth.
     // We simulate the event manually and verify the child check prevents a build.
     //
     // The real-world guard is that chokidar simply won't emit the event due to depth:2.
     // We verify here that IF such an event somehow arrived, resolveChildRepo would
-    // reject it (the child derived from the path won't have a .agents/ immediately).
+    // reject it (the child derived from the path won't have a .chalk/ immediately).
 
     const deepChild = path.join(tmpDir, 'repoA', 'sub1', 'sub2');
-    fs.mkdirSync(path.join(deepChild, '.agents'), { recursive: true });
+    fs.mkdirSync(path.join(deepChild, '.chalk'), { recursive: true });
 
     const watcher = startParentWatcher(tmpDir);
 
-    // Emit a change event as if the 4-deep .agents was hit
-    lastWatcher.emit('change', path.join(deepChild, '.agents', 'providers.yaml'));
+    // Emit a change event as if the 4-deep .chalk was hit
+    lastWatcher.emit('change', path.join(deepChild, '.chalk', 'providers.yaml'));
     await sleep(400);
 
     // buildAgentsRepo should NOT be called because:
     // 1. The child derived is "repoA" (first segment after parent)
-    // 2. repoA itself has no .agents/ at its root
+    // 2. repoA itself has no .chalk/ at its root
     expect(mockBuildAgentsRepo).not.toHaveBeenCalled();
 
     await watcher.close();
@@ -230,15 +230,15 @@ describe('startParentWatcher — depth boundary: 4-deep .agents/ is unreachable'
 // ---------------------------------------------------------------------------
 
 describe('startParentWatcher — 20 fake child repos', () => {
-  it('handles 20 child repos without error; builds only those with .agents/', async () => {
-    // Create 20 child repos; only 5 have .agents/
+  it('handles 20 child repos without error; builds only those with .chalk/', async () => {
+    // Create 20 child repos; only 5 have .chalk/
     const withAgents = new Set([2, 5, 8, 12, 17]);
     const agentsFiles = new Map<number, string>();
 
     for (let i = 0; i < 20; i++) {
       const childDir = path.join(tmpDir, `repo${i}`);
       if (withAgents.has(i)) {
-        const agentsDir = path.join(childDir, '.agents');
+        const agentsDir = path.join(childDir, '.chalk');
         fs.mkdirSync(agentsDir, { recursive: true });
         // Create a real file so realpathSync succeeds
         const f = path.join(agentsDir, 'providers.yaml');
@@ -254,22 +254,22 @@ describe('startParentWatcher — 20 fake child repos', () => {
 
     const watcher = startParentWatcher(tmpDir);
 
-    // Emit change events — for repos with .agents/ use the real .agents file
-    // For repos without .agents/ the event won't trigger a build
+    // Emit change events — for repos with .chalk/ use the real .chalk file
+    // For repos without .chalk/ the event won't trigger a build
     for (let i = 0; i < 20; i++) {
       const childDir = path.join(tmpDir, `repo${i}`);
       if (withAgents.has(i)) {
         const f = agentsFiles.get(i)!;
         lastWatcher.emit('change', f);
       } else {
-        // Emit a change in the src dir — resolveChildRepo won't find .agents/
+        // Emit a change in the src dir — resolveChildRepo won't find .chalk/
         lastWatcher.emit('change', path.join(childDir, 'src', 'index.ts'));
       }
     }
 
     await sleep(500);
 
-    // Exactly 5 repos had .agents/, so buildAgentsRepo should be called 5 times
+    // Exactly 5 repos had .chalk/, so buildAgentsRepo should be called 5 times
     expect(mockBuildAgentsRepo).toHaveBeenCalledTimes(5);
 
     await watcher.close();
@@ -308,7 +308,7 @@ describe('startParentWatcher — fd count (linux only)', () => {
       // Create 20 fake child repos each with a node_modules containing 1000 fake files
       for (let i = 0; i < 20; i++) {
         const childDir = path.join(tmpDir, `repo${i}`);
-        fs.mkdirSync(path.join(childDir, '.agents'), { recursive: true });
+        fs.mkdirSync(path.join(childDir, '.chalk'), { recursive: true });
         // Create a node_modules with 1000 fake files
         for (let j = 0; j < 1000; j++) {
           const pkgDir = path.join(childDir, 'node_modules', `pkg${j}`);

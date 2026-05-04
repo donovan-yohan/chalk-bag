@@ -2,7 +2,7 @@
 
 Reusable agent skills for structured software development workflows, plus a standalone CLI for compiling per-provider AI configs.
 
-- **chalkbag** — Standalone CLI: compiles `.agents/` source trees into per-provider configs (`.claude/`, `.codex/`, `.opencode/`)
+- **chalkbag** — Standalone CLI: compiles `.chalk/` source trees into per-provider configs (`.claude/`, `.codex/`, `.opencode/`)
 - **harness** — Documentation lifecycle management with self-improving review agents
 - **pr** — Pull request lifecycle automation
 
@@ -10,7 +10,7 @@ Reusable agent skills for structured software development workflows, plus a stan
 
 ### chalkbag
 
-A global CLI that compiles a tracked `.agents/` source tree into gitignored per-provider configs and registers watched paths with a background launchd daemon for incremental rebuilds.
+A global CLI that compiles a tracked `.chalk/` source tree into gitignored per-provider configs and registers watched paths with a background launchd daemon for incremental rebuilds.
 
 ```bash
 npm i -g chalkbag

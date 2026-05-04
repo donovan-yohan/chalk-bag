@@ -29,7 +29,7 @@ export async function mergeImport(
 
   const importRoot = entry.path
     ? path.join(cachedRepoPath, entry.path)
-    : path.join(cachedRepoPath, '.agents');
+    : path.join(cachedRepoPath, '.chalk');
 
   if (!(await pathExists(importRoot))) {
     throw new ChalkBagError({

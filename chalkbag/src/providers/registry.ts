@@ -27,9 +27,14 @@ export const firstPartyProviderRegistry = firstPartyProviderDefinitions.map(({ p
   ...Provider[],
 ];
 
-export const providerGeneratedArtifactEntries = firstPartyProviderDefinitions.flatMap(
-  ({ generatedArtifactEntries }) => [...generatedArtifactEntries],
-);
+// .agents/ is always-on output (gitignored mirror of merged source for
+// AGENTS.md-spec readers like Codex hierarchical scan).
+const sharedGeneratedArtifactEntries = ['/.agents/'];
+
+export const providerGeneratedArtifactEntries = [
+  ...sharedGeneratedArtifactEntries,
+  ...firstPartyProviderDefinitions.flatMap(({ generatedArtifactEntries }) => [...generatedArtifactEntries]),
+];
 
 const firstPartyProviderRegistryById = new Map<ProviderId, Provider>(
   firstPartyProviderRegistry.map((provider) => [provider.id, provider] as const),

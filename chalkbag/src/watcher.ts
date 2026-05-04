@@ -7,6 +7,28 @@ import pLimit from 'p-limit';
 import { buildAgentsRepo } from './render.js';
 import { isPathIgnored } from './scope.js';
 import type { ProviderId } from './providers/registry.js';
+import { isChalkBagError } from './types.js';
+
+/**
+ * Format a watcher rebuild failure for the console: surface the repo
+ * basename, the error kind (when ChalkBagError), and the failing file
+ * relative to the scope root.
+ */
+function formatRebuildFailure(scopeRoot: string, error: unknown): string {
+  const repoLabel = path.basename(scopeRoot) || scopeRoot;
+  const kind = isChalkBagError(error) ? error.kind : 'error';
+  const message = error instanceof Error ? error.message : String(error);
+  const failingFile = isChalkBagError(error) && error.file ? toRepoRelative(scopeRoot, error.file) : null;
+  const where = failingFile ? ` in ${failingFile}` : '';
+  return `chalkbag watcher: ${repoLabel} build failed (${kind}${where}): ${message}`;
+}
+
+function toRepoRelative(scopeRoot: string, file: string): string {
+  const absolute = path.isAbsolute(file) ? file : path.resolve(scopeRoot, file);
+  const relative = path.relative(scopeRoot, absolute);
+  if (relative === '' || relative.startsWith('..')) return file;
+  return relative;
+}
 
 // Concurrency cap: at most 2 concurrent buildAgentsRepo calls across all scopes (eng M-2)
 const BUILD_CONCURRENCY = pLimit(2);
@@ -21,7 +43,7 @@ type RepoWatcherOptions = {
 };
 
 /**
- * Watches `<repoRoot>/.agents/**` for changes and triggers a rebuild on each event.
+ * Watches `<repoRoot>/.chalk/**` for changes and triggers a rebuild on each event.
  *
  * Equivalent to xt's `startAgentsWatcher`. Debounces events by 200ms.
  * Uses `BUILD_CONCURRENCY` (pLimit 2) to avoid stampede (eng M-2).
@@ -33,12 +55,12 @@ export function startRepoWatcher(
   repoRoot: string,
   options: RepoWatcherOptions = {},
 ) {
-  const agentsRoot = path.join(repoRoot, '.agents');
+  const agentsRoot = path.join(repoRoot, '.chalk');
 
   const ignored = [
-    /\/\.agents-tmp\//u,
-    /\/\.agents\/\.state\.lock$/u,
-    /\/\.agents\/\.state\.json$/u,
+    /\/\.chalk-tmp\//u,
+    /\/\.chalk\/\.state\.lock$/u,
+    /\/\.chalk\/\.state\.json$/u,
   ];
 
   const watcher = chokidar.watch(agentsRoot, {
@@ -63,9 +85,7 @@ export function startRepoWatcher(
         try {
           await buildAgentsRepo(repoRoot, { force: true, yes: true, providers: options.providers });
         } catch (error) {
-          console.error(
-            `chalkbag watcher: rebuild failed for ${repoRoot}: ${error instanceof Error ? error.message : String(error)}`,
-          );
+          console.error(formatRebuildFailure(repoRoot, error));
         }
       });
     }, 200);
@@ -105,17 +125,17 @@ type ParentWatcherOptions = {
  * Watches a parent directory that may contain many child repos.
  *
  * For each fs event under `parentRoot`, resolves which first-level child owns
- * the changed path and queues a rebuild for that child's `.agents/` tree — but
- * only if the child has a `.agents/` directory.
+ * the changed path and queues a rebuild for that child's `.chalk/` tree — but
+ * only if the child has a `.chalk/` directory.
  *
  * Design decisions (from eng review):
- * - `depth: 2` caps chokidar's descent so `<parent>/<child>/.agents/` is
+ * - `depth: 2` caps chokidar's descent so `<parent>/<child>/.chalk/` is
  *   reachable but deeper subtrees are not traversed (eng H-1, fd cap).
  * - Function-based `ignored` short-circuits `node_modules`, `.git`, `.venv`,
  *   `dist`, `.cache`, `.oblv` by basename before stat (eng H-1).
  * - Realpath guard rejects events whose resolved path escapes `parentRoot`
  *   (symlink loop guard, eng H-3).
- * - On `unlinkDir` of `<child>/.agents`: any pending build timer is cancelled
+ * - On `unlinkDir` of `<child>/.chalk`: any pending build timer is cancelled
  *   and no rebuild is queued (eng H-2).
  * - `BUILD_CONCURRENCY` (pLimit 2) caps concurrent rebuilds (eng M-2).
  *
@@ -134,7 +154,7 @@ export function startParentWatcher(
   };
 
   const watcher = chokidar.watch(parentRoot, {
-    depth: 2, // cap at <parent>/<child>/.agents/file (eng H-1)
+    depth: 2, // cap at <parent>/<child>/.chalk/file (eng H-1)
     ignoreInitial: true,
     followSymlinks: false,
     ignored: shouldIgnore,
@@ -171,8 +191,8 @@ export function startParentWatcher(
 
     const childRoot = path.join(parentRoot, child);
 
-    // Only dispatch if the child has a .agents/ directory
-    if (!fs.existsSync(path.join(childRoot, '.agents'))) return null;
+    // Only dispatch if the child has a .chalk/ directory
+    if (!fs.existsSync(path.join(childRoot, '.chalk'))) return null;
 
     return childRoot;
   };
@@ -189,9 +209,7 @@ export function startParentWatcher(
           try {
             await buildAgentsRepo(scopeRoot, { force: true, yes: true, providers: options.providers });
           } catch (error) {
-            console.error(
-              `chalkbag watcher: rebuild failed for ${scopeRoot}: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            console.error(formatRebuildFailure(scopeRoot, error));
           }
         });
       }, 250),
@@ -207,15 +225,15 @@ export function startParentWatcher(
   watcher.on('change', onEvent);
   watcher.on('unlink', onEvent);
 
-  // eng H-2: if .agents/ itself is deleted, cancel any pending build for that child
+  // eng H-2: if .chalk/ itself is deleted, cancel any pending build for that child
   watcher.on('unlinkDir', (p: string) => {
-    if (path.basename(p) === '.agents') {
+    if (path.basename(p) === '.chalk') {
       const childRoot = path.dirname(p);
       const timer = queued.get(childRoot);
       if (timer) {
         clearTimeout(timer);
         queued.delete(childRoot);
-        console.error(`chalkbag watcher: .agents/ deleted for ${childRoot} — cancelling pending build`);
+        console.error(`chalkbag watcher: .chalk/ deleted for ${childRoot} — cancelling pending build`);
       }
     }
   });

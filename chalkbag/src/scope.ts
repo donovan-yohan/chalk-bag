@@ -18,7 +18,7 @@ export async function resolveAgentsScope(startPath: string): Promise<AgentsScope
   let current = start;
   const basename = path.basename(current);
 
-  if (basename === '.agents' && (await pathExists(current))) {
+  if (basename === '.chalk' && (await pathExists(current))) {
     const parent = path.dirname(current);
     return {
       sourceRoot: parent,
@@ -28,7 +28,7 @@ export async function resolveAgentsScope(startPath: string): Promise<AgentsScope
   }
 
   while (true) {
-    const agentsRoot = path.join(current, '.agents');
+    const agentsRoot = path.join(current, '.chalk');
     if (await pathExists(agentsRoot)) {
       return {
         sourceRoot: current,
@@ -47,8 +47,8 @@ export async function resolveAgentsScope(startPath: string): Promise<AgentsScope
   throw new ChalkBagError({
     kind: 'config',
     file: startPath,
-    message: 'unable to locate .agents/ from this path',
-    fix: 'run `chalkbag scaffold` or cd into a repo with .agents/',
+    message: 'unable to locate .chalk/ from this path',
+    fix: 'run `chalkbag scaffold` or cd into a repo with .chalk/',
   });
 }
 

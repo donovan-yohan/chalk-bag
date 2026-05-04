@@ -22,8 +22,8 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('resolveAgentsScope — direct resolution', () => {
-  it('resolves when .agents/ exists at the start path', async () => {
-    const agentsDir = path.join(tmpDir, '.agents');
+  it('resolves when .chalk/ exists at the start path', async () => {
+    const agentsDir = path.join(tmpDir, '.chalk');
     fs.mkdirSync(agentsDir);
 
     const scope = await resolveAgentsScope(tmpDir);
@@ -33,15 +33,15 @@ describe('resolveAgentsScope — direct resolution', () => {
   });
 
   it('returns all three scope fields', async () => {
-    fs.mkdirSync(path.join(tmpDir, '.agents'));
+    fs.mkdirSync(path.join(tmpDir, '.chalk'));
     const scope = await resolveAgentsScope(tmpDir);
     expect(scope).toHaveProperty('sourceRoot');
     expect(scope).toHaveProperty('outputRoot');
     expect(scope).toHaveProperty('agentsRoot');
   });
 
-  it('resolves when called with the .agents path directly', async () => {
-    const agentsDir = path.join(tmpDir, '.agents');
+  it('resolves when called with the .chalk path directly', async () => {
+    const agentsDir = path.join(tmpDir, '.chalk');
     fs.mkdirSync(agentsDir);
 
     const scope = await resolveAgentsScope(agentsDir);
@@ -55,8 +55,8 @@ describe('resolveAgentsScope — direct resolution', () => {
 // ---------------------------------------------------------------------------
 
 describe('resolveAgentsScope — walk-up from nested subdirectory', () => {
-  it('finds .agents/ by walking up two levels', async () => {
-    const agentsDir = path.join(tmpDir, '.agents');
+  it('finds .chalk/ by walking up two levels', async () => {
+    const agentsDir = path.join(tmpDir, '.chalk');
     fs.mkdirSync(agentsDir);
     const nestedDir = path.join(tmpDir, 'src', 'lib');
     fs.mkdirSync(nestedDir, { recursive: true });
@@ -66,8 +66,8 @@ describe('resolveAgentsScope — walk-up from nested subdirectory', () => {
     expect(scope.agentsRoot).toBe(agentsDir);
   });
 
-  it('finds .agents/ by walking up three levels', async () => {
-    const agentsDir = path.join(tmpDir, '.agents');
+  it('finds .chalk/ by walking up three levels', async () => {
+    const agentsDir = path.join(tmpDir, '.chalk');
     fs.mkdirSync(agentsDir);
     const deepDir = path.join(tmpDir, 'a', 'b', 'c');
     fs.mkdirSync(deepDir, { recursive: true });
@@ -78,7 +78,7 @@ describe('resolveAgentsScope — walk-up from nested subdirectory', () => {
   });
 
   it('resolves from a file path inside the repo (uses dirname)', async () => {
-    const agentsDir = path.join(tmpDir, '.agents');
+    const agentsDir = path.join(tmpDir, '.chalk');
     fs.mkdirSync(agentsDir);
     const filePath = path.join(tmpDir, 'src', 'index.ts');
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -90,11 +90,11 @@ describe('resolveAgentsScope — walk-up from nested subdirectory', () => {
 });
 
 // ---------------------------------------------------------------------------
-// resolveAgentsScope — error when no .agents/ found
+// resolveAgentsScope — error when no .chalk/ found
 // ---------------------------------------------------------------------------
 
-describe('resolveAgentsScope — throws when no .agents/ found', () => {
-  it('throws ChalkBagError with kind: config when no .agents/ exists', async () => {
+describe('resolveAgentsScope — throws when no .chalk/ found', () => {
+  it('throws ChalkBagError with kind: config when no .chalk/ exists', async () => {
     await expect(resolveAgentsScope(tmpDir)).rejects.toThrow(ChalkBagError);
   });
 
@@ -121,12 +121,12 @@ describe('resolveAgentsScope — throws when no .agents/ found', () => {
     }
   });
 
-  it('does not walk into a sibling directory with .agents/', async () => {
-    // Create a sibling tmp dir that has .agents, but start from a different dir
+  it('does not walk into a sibling directory with .chalk/', async () => {
+    // Create a sibling tmp dir that has .chalk, but start from a different dir
     const otherDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chalkbag-scope-other-'));
     try {
-      fs.mkdirSync(path.join(otherDir, '.agents'));
-      // tmpDir has no .agents, so resolution should fail even though otherDir has one
+      fs.mkdirSync(path.join(otherDir, '.chalk'));
+      // tmpDir has no .chalk, so resolution should fail even though otherDir has one
       await expect(resolveAgentsScope(tmpDir)).rejects.toThrow(ChalkBagError);
     } finally {
       fs.rmSync(otherDir, { recursive: true, force: true });

@@ -48,11 +48,11 @@ export async function buildAgentsRepo(
 
   const scope = await normalizeScope(scopeOrRoot);
 
-  const releaseLock = await acquireRenderLock(scope.sourceRoot, '.agents');
+  const releaseLock = await acquireRenderLock(scope.sourceRoot, '.chalk');
 
   try {
     const repo = await loadAgentsRepo(scope);
-    const previousState = await readAgentsState(scope.sourceRoot, { stateDirectory: '.agents' });
+    const previousState = await readAgentsState(scope.sourceRoot, { stateDirectory: '.chalk' });
     const enabledProviders = determineProviders(previousState.lastFlags, options.providers);
     await assertBuildAllowed(scope, Boolean(options.force));
     const wroteGitignore = options.yes ? await ensureGitignoreEntries(scope.sourceRoot) : false;
@@ -77,7 +77,7 @@ export async function buildAgentsRepo(
           lastBuildAt: new Date().toISOString(),
           daemonVersion: 'phase-2',
         },
-        { stateDirectory: '.agents' },
+        { stateDirectory: '.chalk' },
       );
     }
 
@@ -150,7 +150,7 @@ function renderOutputs(
       kind: 'provider',
       file: missingProviders[0],
       message: `no registered implementation for enabled provider(s): ${missingProviders.join(', ')}. Valid providers: ${providerIds.join(', ')}`,
-      fix: 'check the provider IDs in .agents/providers.yaml — valid values are: ' + providerIds.join(', '),
+      fix: 'check the provider IDs in .chalk/providers.yaml — valid values are: ' + providerIds.join(', '),
     });
   }
 
@@ -173,6 +173,15 @@ function renderOutputs(
         sourcePath: repo.root.relativePath,
       });
     }
+  }
+
+  // Always-on .agents/ output for AGENTS.md-spec readers that auto-discover
+  // skills via hierarchical scan (Codex CLI today; future Cursor/Gemini/etc.
+  // adopting the spec land here too). Independent of which providers are
+  // enabled — the spec's discovery is its own contract, not Codex-specific.
+  // Reference: https://developers.openai.com/codex/skills#where-to-save-skills
+  for (const output of renderSharedAgentsMdMirror(repo)) {
+    rendered.set(output.path, output);
   }
 
   for (const provider of firstPartyProviderRegistry) {
@@ -215,7 +224,7 @@ async function applyOutputs(
 ): Promise<{ manifest: Record<string, { hash: string; sourcePath: string }>; warnings: string[] }> {
   const warnings: string[] = [];
   const outputMap = new Map(outputs.map((output) => [output.path, output]));
-  const tempRoot = path.join(outputRoot, '.agents-tmp', `${process.pid}`);
+  const tempRoot = path.join(outputRoot, '.chalk-tmp', `${process.pid}`);
 
   await fs.promises.rm(tempRoot, { recursive: true, force: true });
 
@@ -232,7 +241,7 @@ async function applyOutputs(
       hashRenderedOutput(onDisk) !== previous.hash &&
       hashRenderedOutput(onDisk) !== hashRenderedOutput(output)
     ) {
-      warnings.push(`chalkbag: ${output.path} was edited outside .agents — overwriting.`);
+      warnings.push(`chalkbag: ${output.path} was edited outside .chalk — overwriting.`);
     }
 
     await fs.promises.mkdir(destinationDir, { recursive: true });
@@ -285,7 +294,7 @@ async function acquireRenderLock(repoRoot: string, stateDirectory: string): Prom
           file: lockPath,
           message: 'failed to acquire render lock',
           cause: error,
-          fix: 'ensure no other chalkbag process is holding the lock, or delete .agents/.state.lock manually',
+          fix: 'ensure no other chalkbag process is holding the lock, or delete .chalk/.state.lock manually',
         });
       }
 
@@ -295,7 +304,7 @@ async function acquireRenderLock(repoRoot: string, stateDirectory: string): Prom
           file: lockPath,
           message: `timed out waiting for render lock after ${LOCK_TIMEOUT_MS}ms`,
           cause: error,
-          fix: 'another process may be stuck; delete .agents/.state.lock manually and retry',
+          fix: 'another process may be stuck; delete .chalk/.state.lock manually and retry',
         });
       }
       await sleep(LOCK_POLL_MS);
@@ -305,6 +314,31 @@ async function acquireRenderLock(repoRoot: string, stateDirectory: string): Prom
 
 function normalizeContent(content: string): string {
   return `${content.replace(/\r\n/g, '\n').replace(/\n*$/u, '')}\n`;
+}
+
+// Mirror merged skills into .agents/skills/<name>/ so AGENTS.md-spec readers
+// (Codex hierarchical scan and any other tool following the spec) discover
+// them without per-provider rendering. The shape mirrors the source skill
+// folder verbatim — SKILL.md plus any bundled references/, scripts/, assets/.
+function renderSharedAgentsMdMirror(
+  repo: Awaited<ReturnType<typeof loadAgentsRepo>>,
+): GeneratedOutput[] {
+  const outputs: GeneratedOutput[] = [];
+
+  for (const skill of repo.skills) {
+    const skillName = path.basename(skill.directoryPath);
+    for (const file of skill.files) {
+      const relativeToSkill = path.relative(skill.directoryPath, file.sourcePath).split(path.sep).join('/');
+      outputs.push({
+        kind: 'file',
+        path: `.agents/skills/${skillName}/${relativeToSkill}`,
+        content: file.content,
+        sourcePath: file.relativePath,
+      });
+    }
+  }
+
+  return outputs;
 }
 
 function renderInstructionMarkdown(body: string, sourcePath: string): string {

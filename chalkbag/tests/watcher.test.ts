@@ -92,7 +92,7 @@ describe('startRepoWatcher — change triggers debounced build', () => {
   it('calls buildAgentsRepo after a change event (debounced 200ms)', async () => {
     const watcher = startRepoWatcher(tmpDir);
 
-    lastWatcher.emit('change', path.join(tmpDir, '.agents', 'providers.yaml'));
+    lastWatcher.emit('change', path.join(tmpDir, '.chalk', 'providers.yaml'));
     // Before debounce fires, should not have been called
     expect(mockBuildAgentsRepo).not.toHaveBeenCalled();
 
@@ -108,7 +108,7 @@ describe('startRepoWatcher — change triggers debounced build', () => {
 
   it('debounces: rapid events result in a single build call', async () => {
     const watcher = startRepoWatcher(tmpDir);
-    const agentsFile = path.join(tmpDir, '.agents', 'x.md');
+    const agentsFile = path.join(tmpDir, '.chalk', 'x.md');
 
     // Fire 5 rapid change events
     for (let i = 0; i < 5; i++) {
@@ -125,7 +125,7 @@ describe('startRepoWatcher — change triggers debounced build', () => {
   it('triggers on add events as well', async () => {
     const watcher = startRepoWatcher(tmpDir);
 
-    lastWatcher.emit('add', path.join(tmpDir, '.agents', 'new-skill.md'));
+    lastWatcher.emit('add', path.join(tmpDir, '.chalk', 'new-skill.md'));
     await sleep(350);
     expect(mockBuildAgentsRepo).toHaveBeenCalledOnce();
 
@@ -135,7 +135,7 @@ describe('startRepoWatcher — change triggers debounced build', () => {
   it('triggers on unlink events', async () => {
     const watcher = startRepoWatcher(tmpDir);
 
-    lastWatcher.emit('unlink', path.join(tmpDir, '.agents', 'old-skill.md'));
+    lastWatcher.emit('unlink', path.join(tmpDir, '.chalk', 'old-skill.md'));
     await sleep(350);
     expect(mockBuildAgentsRepo).toHaveBeenCalledOnce();
 
@@ -148,9 +148,9 @@ describe('startRepoWatcher — change triggers debounced build', () => {
 // ---------------------------------------------------------------------------
 
 describe('startParentWatcher — fires per child scope', () => {
-  it('triggers a build for a child repo that has .agents/', async () => {
+  it('triggers a build for a child repo that has .chalk/', async () => {
     const childDir = path.join(tmpDir, 'myrepo');
-    const agentsDir = path.join(childDir, '.agents');
+    const agentsDir = path.join(childDir, '.chalk');
     fs.mkdirSync(agentsDir, { recursive: true });
 
     // Create the actual file that will be "changed" so realpathSync succeeds
@@ -159,7 +159,7 @@ describe('startParentWatcher — fires per child scope', () => {
 
     const watcher = startParentWatcher(tmpDir);
 
-    // Emit a change in the child's .agents dir
+    // Emit a change in the child's .chalk dir
     lastWatcher.emit('change', providersFile);
     await sleep(400);
 
@@ -172,7 +172,7 @@ describe('startParentWatcher — fires per child scope', () => {
     await watcher.close();
   });
 
-  it('does NOT fire for child repos without .agents/', async () => {
+  it('does NOT fire for child repos without .chalk/', async () => {
     const childDir = path.join(tmpDir, 'no-agents-repo');
     const srcDir = path.join(childDir, 'src');
     fs.mkdirSync(srcDir, { recursive: true });
@@ -191,12 +191,12 @@ describe('startParentWatcher — fires per child scope', () => {
   it('fires independently for two separate child repos', async () => {
     const childA = path.join(tmpDir, 'repoA');
     const childB = path.join(tmpDir, 'repoB');
-    fs.mkdirSync(path.join(childA, '.agents'), { recursive: true });
-    fs.mkdirSync(path.join(childB, '.agents'), { recursive: true });
+    fs.mkdirSync(path.join(childA, '.chalk'), { recursive: true });
+    fs.mkdirSync(path.join(childB, '.chalk'), { recursive: true });
 
     // Create actual files for realpathSync
-    const fileA = path.join(childA, '.agents', 'x.md');
-    const fileB = path.join(childB, '.agents', 'y.md');
+    const fileA = path.join(childA, '.chalk', 'x.md');
+    const fileB = path.join(childB, '.chalk', 'y.md');
     fs.writeFileSync(fileA, '', 'utf8');
     fs.writeFileSync(fileB, '', 'utf8');
 
@@ -237,22 +237,22 @@ describe('startParentWatcher — ignored paths', () => {
     expect(ignoredFn(path.join(tmpDir, 'myrepo', 'dist'))).toBe(true);
   });
 
-  it('ignored function returns false for normal .agents/ paths', () => {
+  it('ignored function returns false for normal .chalk/ paths', () => {
     startParentWatcher(tmpDir);
     const ignoredFn = lastWatchOptions['ignored'] as ((p: string) => boolean) | undefined;
     if (typeof ignoredFn !== 'function') {
       return;
     }
 
-    expect(ignoredFn(path.join(tmpDir, 'myrepo', '.agents'))).toBe(false);
-    expect(ignoredFn(path.join(tmpDir, 'myrepo', '.agents', 'providers.yaml'))).toBe(false);
+    expect(ignoredFn(path.join(tmpDir, 'myrepo', '.chalk'))).toBe(false);
+    expect(ignoredFn(path.join(tmpDir, 'myrepo', '.chalk', 'providers.yaml'))).toBe(false);
   });
 
   it('does not crash when receiving events from paths the ignored fn would normally block', async () => {
     const childDir = path.join(tmpDir, 'myrepo');
     // Even if a node_modules event somehow arrived, the watcher handles it gracefully.
     // (In practice chokidar won't emit it because `ignored` blocks the directory.)
-    fs.mkdirSync(path.join(childDir, '.agents'), { recursive: true });
+    fs.mkdirSync(path.join(childDir, '.chalk'), { recursive: true });
 
     const watcher = startParentWatcher(tmpDir);
 
@@ -291,7 +291,7 @@ describe('startParentWatcher — symlink realpath guard (eng H-3)', () => {
     // Create an external directory (outside tmpDir)
     const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chalkbag-external-'));
     try {
-      fs.mkdirSync(path.join(externalDir, '.agents'), { recursive: true });
+      fs.mkdirSync(path.join(externalDir, '.chalk'), { recursive: true });
 
       // Create a symlink inside tmpDir pointing to the external dir
       const symlinkPath = path.join(tmpDir, 'symlinked-repo');
@@ -305,7 +305,7 @@ describe('startParentWatcher — symlink realpath guard (eng H-3)', () => {
       const watcher = startParentWatcher(tmpDir);
 
       // Emit a change for the symlink path — realpath guard should block this
-      lastWatcher.emit('change', path.join(symlinkPath, '.agents', 'providers.yaml'));
+      lastWatcher.emit('change', path.join(symlinkPath, '.chalk', 'providers.yaml'));
       await sleep(400);
 
       // The realpath of the symlink resolves outside tmpDir, so no build should fire
@@ -319,13 +319,13 @@ describe('startParentWatcher — symlink realpath guard (eng H-3)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// unlinkDir of .agents cancels pending build (eng H-2)
+// unlinkDir of .chalk cancels pending build (eng H-2)
 // ---------------------------------------------------------------------------
 
-describe('startParentWatcher — unlinkDir of .agents cancels pending build (eng H-2)', () => {
-  it('cancels a pending build when .agents/ is deleted', async () => {
+describe('startParentWatcher — unlinkDir of .chalk cancels pending build (eng H-2)', () => {
+  it('cancels a pending build when .chalk/ is deleted', async () => {
     const childDir = path.join(tmpDir, 'myrepo');
-    const agentsDir = path.join(childDir, '.agents');
+    const agentsDir = path.join(childDir, '.chalk');
     fs.mkdirSync(agentsDir, { recursive: true });
 
     // Create a real file so realpathSync succeeds for the change event
@@ -337,7 +337,7 @@ describe('startParentWatcher — unlinkDir of .agents cancels pending build (eng
     // Queue a build by emitting a change event
     lastWatcher.emit('change', xFile);
 
-    // Immediately cancel by emitting unlinkDir for .agents
+    // Immediately cancel by emitting unlinkDir for .chalk
     lastWatcher.emit('unlinkDir', agentsDir);
 
     // Wait past debounce duration
@@ -361,7 +361,7 @@ describe('startParentWatcher — concurrency cap (eng M-2)', () => {
     const childFiles: string[] = [];
     for (let i = 0; i < 5; i++) {
       const child = path.join(tmpDir, `repo${i}`);
-      const agentsDir = path.join(child, '.agents');
+      const agentsDir = path.join(child, '.chalk');
       fs.mkdirSync(agentsDir, { recursive: true });
       const f = path.join(agentsDir, 'x.md');
       fs.writeFileSync(f, '', 'utf8');
@@ -418,7 +418,7 @@ describe('watchAgentsRepo — initial build', () => {
     // To exit cleanly without signals, we wrap the whole thing with a racing
     // timer that resolves via a side-channel.
     const repoDir = path.join(tmpDir, 'watchrepo');
-    fs.mkdirSync(path.join(repoDir, '.agents'), { recursive: true });
+    fs.mkdirSync(path.join(repoDir, '.chalk'), { recursive: true });
 
     // Patch mockBuildAgentsRepo to record the initial call and resolve quickly
     let initialBuildArgs: unknown[] | null = null;

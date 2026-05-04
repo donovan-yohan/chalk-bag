@@ -35,7 +35,7 @@ const myProvider: Provider = {
       kind: 'file',
       path: `.myprovider/AGENTS.md`,
       content: context.repo.root?.body ?? '',
-      sourcePath: `.agents/AGENTS.md`,
+      sourcePath: `.chalk/AGENTS.md`,
     });
 
     return outputs;
@@ -107,7 +107,7 @@ Open a pull request against `donovan-yohan/chalk-bag`. Include:
 
 ## Tomorrow (v2 roadmap): dynamic loader
 
-In v2, chalkbag will support a dynamic provider loader. Users will be able to declare a third-party provider in `.agents/config.yaml` without forking the repo:
+In v2, chalkbag will support a dynamic provider loader. Users will be able to declare a third-party provider in `.chalk/config.yaml` without forking the repo:
 
 ```yaml
 # planned shape — not yet implemented

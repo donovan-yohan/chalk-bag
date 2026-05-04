@@ -1,7 +1,7 @@
 /**
  * Integration tests for buildAgentsRepo.
  *
- * Creates real temp repos with a .agents/ source tree, runs the full render
+ * Creates real temp repos with a .chalk/ source tree, runs the full render
  * pipeline, and asserts output files are written correctly.
  */
 import fs from 'node:fs';
@@ -15,7 +15,7 @@ import { ChalkBagError } from '../src/types.js';
 
 // Point at the built-in template directory
 const TEMPLATE_ROOT = path.resolve(
-  new URL('../templates/.agents', import.meta.url).pathname,
+  new URL('../templates/.chalk', import.meta.url).pathname,
 );
 
 // ---------------------------------------------------------------------------
@@ -33,12 +33,12 @@ afterEach(() => {
 });
 
 /**
- * Creates a minimal but valid .agents/ tree in `repoRoot`, mirroring the
+ * Creates a minimal but valid .chalk/ tree in `repoRoot`, mirroring the
  * template structure. Adds a root AGENTS.md file.
  */
 function setupMinimalRepo(repoRoot: string): void {
-  // Copy template .agents directory recursively
-  copyDir(TEMPLATE_ROOT, path.join(repoRoot, '.agents'));
+  // Copy template .chalk directory recursively
+  copyDir(TEMPLATE_ROOT, path.join(repoRoot, '.chalk'));
 
   // Write a root AGENTS.md
   fs.writeFileSync(
@@ -62,7 +62,7 @@ function copyDir(src: string, dest: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// End-to-end render: .agents/ → provider outputs
+// End-to-end render: .chalk/ → provider outputs
 // ---------------------------------------------------------------------------
 
 describe('buildAgentsRepo — end-to-end render', () => {
@@ -164,14 +164,14 @@ describe('buildAgentsRepo — end-to-end render', () => {
     expect(fs.readlinkSync(claudeMdPath)).toBe('AGENTS.md');
   });
 
-  it('writes .agents/.state.json after successful build', async () => {
+  it('writes .chalk/.state.json after successful build', async () => {
     const repoDir = path.join(tmpDir, 'repo');
     fs.mkdirSync(repoDir);
     setupMinimalRepo(repoDir);
 
     await buildAgentsRepo(repoDir, { force: true, yes: true });
 
-    const statePath = path.join(repoDir, '.agents', '.state.json');
+    const statePath = path.join(repoDir, '.chalk', '.state.json');
     expect(fs.existsSync(statePath)).toBe(true);
 
     const state = JSON.parse(fs.readFileSync(statePath, 'utf8')) as {
@@ -214,7 +214,7 @@ describe('buildAgentsRepo — lock contention', () => {
     expect(Array.isArray(r2.warnings)).toBe(true);
 
     // State file should exist and be valid JSON after both complete
-    const statePath = path.join(repoDir, '.agents', '.state.json');
+    const statePath = path.join(repoDir, '.chalk', '.state.json');
     expect(fs.existsSync(statePath)).toBe(true);
     const state = JSON.parse(fs.readFileSync(statePath, 'utf8')) as Record<string, unknown>;
     expect(typeof state['manifest']).toBe('object');
@@ -246,7 +246,7 @@ describe('buildAgentsRepo — resolveOutputPath escape guard (eng M-3)', () => {
     const repoDir = path.join(tmpDir, 'escape-test-repo');
     fs.mkdirSync(repoDir);
 
-    // Build a minimal .agents/ with a subagent whose generated path would escape
+    // Build a minimal .chalk/ with a subagent whose generated path would escape
     // the repo root. We do this by providing a custom providers.yaml that only
     // enables a mock provider — but since we can't inject a provider at runtime,
     // we test resolveOutputPath via an absolute path in output which is checked
@@ -272,7 +272,7 @@ describe('buildAgentsRepo — resolveOutputPath escape guard (eng M-3)', () => {
     const result = await buildAgentsRepo(repoDir, { force: true, yes: true });
 
     // Verify none of the generated outputs are outside repoDir
-    const statePath = path.join(repoDir, '.agents', '.state.json');
+    const statePath = path.join(repoDir, '.chalk', '.state.json');
     const state = JSON.parse(fs.readFileSync(statePath, 'utf8')) as {
       manifest?: Record<string, { hash: string; sourcePath: string }>;
     };
@@ -326,23 +326,23 @@ describe('buildAgentsRepo — provider filtering', () => {
 
     await buildAgentsRepo(repoDir, { force: true, yes: true, persistState: false });
 
-    const statePath = path.join(repoDir, '.agents', '.state.json');
+    const statePath = path.join(repoDir, '.chalk', '.state.json');
     expect(fs.existsSync(statePath)).toBe(false);
   });
 });
 
 // ---------------------------------------------------------------------------
-// stripSubagentSourcePrefix (issue #11): subagent output path strips .agents/subagents/ prefix
+// stripSubagentSourcePrefix (issue #11): subagent output path strips .chalk/subagents/ prefix
 // ---------------------------------------------------------------------------
 
 describe('buildAgentsRepo — subagent output path stripping (issue #11)', () => {
-  it('subagent renders to .claude/agents/<name>.md (strips .agents/subagents/ prefix)', async () => {
+  it('subagent renders to .claude/agents/<name>.md (strips .chalk/subagents/ prefix)', async () => {
     const repoDir = path.join(tmpDir, 'subagent-strip-repo');
     fs.mkdirSync(repoDir);
     setupMinimalRepo(repoDir);
 
-    // Create a subagent in the .agents/subagents/ directory
-    const subagentsDir = path.join(repoDir, '.agents', 'subagents');
+    // Create a subagent in the .chalk/subagents/ directory
+    const subagentsDir = path.join(repoDir, '.chalk', 'subagents');
     fs.mkdirSync(subagentsDir, { recursive: true });
     fs.writeFileSync(
       path.join(subagentsDir, 'code-reviewer.md'),
@@ -353,9 +353,9 @@ describe('buildAgentsRepo — subagent output path stripping (issue #11)', () =>
     await buildAgentsRepo(repoDir, { force: true, yes: true, providers: ['claude'] });
 
     // The subagent should appear at .claude/agents/code-reviewer.md, NOT
-    // .claude/agents/.agents/subagents/code-reviewer.md
+    // .claude/agents/.chalk/subagents/code-reviewer.md
     expect(fs.existsSync(path.join(repoDir, '.claude', 'agents', 'code-reviewer.md'))).toBe(true);
-    expect(fs.existsSync(path.join(repoDir, '.claude', 'agents', '.agents', 'subagents', 'code-reviewer.md'))).toBe(false);
+    expect(fs.existsSync(path.join(repoDir, '.claude', 'agents', '.chalk', 'subagents', 'code-reviewer.md'))).toBe(false);
   });
 });
 
@@ -388,5 +388,103 @@ describe('buildAgentsRepo — AGENTS.md idempotence for tracked local file (issu
     const contentAfterSecondBuild = fs.readFileSync(path.join(repoDir, 'AGENTS.md'), 'utf8');
     expect(contentAfterSecondBuild).toBe(originalContent);
     expect(contentAfterSecondBuild).not.toContain('Do not edit inline');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// .agents/ skills mirror for AGENTS.md-spec readers (Codex hierarchical scan)
+// ---------------------------------------------------------------------------
+
+describe('buildAgentsRepo — .agents/ skills mirror', () => {
+  it('mirrors merged skills into .agents/skills/<name>/SKILL.md verbatim', async () => {
+    const repoDir = path.join(tmpDir, 'mirror-repo');
+    fs.mkdirSync(repoDir);
+    setupMinimalRepo(repoDir);
+
+    await buildAgentsRepo(repoDir, { force: true, yes: true });
+
+    const mirrored = path.join(repoDir, '.agents', 'skills', 'example-skill', 'SKILL.md');
+    expect(fs.existsSync(mirrored)).toBe(true);
+    const content = fs.readFileSync(mirrored, 'utf8');
+    expect(content).toContain('name: example-skill');
+  });
+
+  it('emits the mirror even when only one provider is enabled', async () => {
+    const repoDir = path.join(tmpDir, 'mirror-claude-only');
+    fs.mkdirSync(repoDir);
+    setupMinimalRepo(repoDir);
+
+    await buildAgentsRepo(repoDir, { force: true, yes: true, providers: ['claude'] });
+
+    expect(
+      fs.existsSync(path.join(repoDir, '.agents', 'skills', 'example-skill', 'SKILL.md')),
+    ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// additionalRoots → claude additionalDirectories + codex writable_roots
+// ---------------------------------------------------------------------------
+
+describe('buildAgentsRepo — additionalRoots', () => {
+  it('renders to claude additionalDirectories and codex writable_roots when sandbox is workspace-write', async () => {
+    const repoDir = path.join(tmpDir, 'additional-roots-repo');
+    fs.mkdirSync(repoDir);
+    setupMinimalRepo(repoDir);
+
+    fs.writeFileSync(
+      path.join(repoDir, '.chalk', 'permissions.yaml'),
+      `additionalRoots:
+  - "/tmp/nightshift-monitor"
+  - "/workspace"
+sandbox:
+  mode: "workspace-write"
+  networkAccess: true
+`,
+      'utf8',
+    );
+
+    const result = await buildAgentsRepo(repoDir, { force: true, yes: true });
+    expect(result.warnings).toEqual([]);
+
+    const settings = JSON.parse(
+      fs.readFileSync(path.join(repoDir, '.claude', 'settings.json'), 'utf8'),
+    ) as { permissions: { additionalDirectories?: string[] } };
+    expect(settings.permissions.additionalDirectories).toEqual([
+      '/tmp/nightshift-monitor',
+      '/workspace',
+    ]);
+
+    const codexConfig = fs.readFileSync(path.join(repoDir, '.codex', 'config.toml'), 'utf8');
+    expect(codexConfig).toContain('[sandbox_workspace_write]');
+    expect(codexConfig).toContain('writable_roots = ["/tmp/nightshift-monitor", "/workspace"]');
+  });
+
+  it('warns and skips writable_roots when sandbox.mode is not workspace-write', async () => {
+    const repoDir = path.join(tmpDir, 'additional-roots-warn-repo');
+    fs.mkdirSync(repoDir);
+    setupMinimalRepo(repoDir);
+
+    fs.writeFileSync(
+      path.join(repoDir, '.chalk', 'permissions.yaml'),
+      `additionalRoots:
+  - "/tmp/scratch"
+sandbox:
+  mode: "read-only"
+`,
+      'utf8',
+    );
+
+    const result = await buildAgentsRepo(repoDir, { force: true, yes: true });
+    expect(result.warnings.some((w) => w.includes('writable_roots'))).toBe(true);
+
+    const codexConfig = fs.readFileSync(path.join(repoDir, '.codex', 'config.toml'), 'utf8');
+    expect(codexConfig).not.toContain('writable_roots');
+    expect(codexConfig).not.toContain('[sandbox_workspace_write]');
+
+    const settings = JSON.parse(
+      fs.readFileSync(path.join(repoDir, '.claude', 'settings.json'), 'utf8'),
+    ) as { permissions: { additionalDirectories?: string[] } };
+    expect(settings.permissions.additionalDirectories).toEqual(['/tmp/scratch']);
   });
 });

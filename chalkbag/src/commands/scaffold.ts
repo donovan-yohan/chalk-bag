@@ -37,7 +37,7 @@ export async function scaffoldRepo(
   validateProviders(options.providers);
 
   const templateRoot = options.templateRoot ?? (await resolveTemplateRoot());
-  const agentsDir = path.join(targetRoot, '.agents');
+  const agentsDir = path.join(targetRoot, '.chalk');
   if (!options.dryRun) {
     await fs.promises.mkdir(agentsDir, { recursive: true });
   }
@@ -93,17 +93,37 @@ export async function scaffoldRepo(
 }
 
 async function resolveTemplateRoot(): Promise<string> {
-  // This file lives at chalkbag/src/commands/scaffold.ts
-  // Template root is 3 levels up (to chalkbag/) then templates/.agents
-  const chalkbagRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-  const templatePath = path.join(chalkbagRoot, 'templates', '.agents');
+  // Respect explicit override for unusual install layouts.
+  const overrideRoot = process.env.CHALKBAG_TEMPLATE_ROOT;
+  if (overrideRoot) {
+    const candidate = path.resolve(overrideRoot);
+    if (await pathExists(candidate)) {
+      return candidate;
+    }
+  }
 
+  // This file compiles to one of:
+  //   src/commands/scaffold.ts  (tsx dev)       → ../../.. =  repo / ../.. = package root
+  //   dist/commands/scaffold.js (installed)     → ../.. = package root
+  // Try 2 ups first (compiled + tsx), then 3 ups (older dev layout).
+  const selfDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.resolve(selfDir, '..', '..', 'templates', '.chalk'),
+    path.resolve(selfDir, '..', '..', '..', 'templates', '.chalk'),
+  ];
+  for (const templatePath of candidates) {
+    if (await pathExists(templatePath)) {
+      return templatePath;
+    }
+  }
+
+  const templatePath = candidates[0];
   if (!(await pathExists(templatePath))) {
     throw new ChalkBagError({
       kind: 'io',
       file: templatePath,
       message: 'template directory not found; is chalkbag installed correctly?',
-      fix: 'reinstall chalkbag or set CHALKBAG_TEMPLATE_ROOT to the .agents template directory path',
+      fix: 'reinstall chalkbag or set CHALKBAG_TEMPLATE_ROOT to the .chalk template directory path',
     });
   }
 
@@ -159,7 +179,7 @@ function renderAgentsMdStub(repoName: string): string {
   return `# ${repoName}
 
 Briefly describe the repository, the default branch, and the main technology stack.
-For chalkbag authoring workflow, see \`.agents/README.md\`; keep this file repo-specific.
+For chalkbag authoring workflow, see \`.chalk/README.md\`; keep this file repo-specific.
 
 ## Repo map
 

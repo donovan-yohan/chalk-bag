@@ -51,7 +51,7 @@ const claudeProvider = {
         kind: 'file',
         path: '.claude/settings.json',
         content: permissions,
-        sourcePath: '.agents/permissions.yaml',
+        sourcePath: '.chalk/permissions.yaml',
       });
     }
 
@@ -83,7 +83,7 @@ function renderMarkdownDocument(frontmatter: Record<string, unknown>, body: stri
 }
 
 function stripSubagentSourcePrefix(relativePath: string): string {
-  return relativePath.replace(/^(imports:[^/]+\/)?\.agents\/subagents\//u, '');
+  return relativePath.replace(/^(imports:[^/]+\/)?\.chalk\/subagents\//u, '');
 }
 
 function buildClaudePermissions(
@@ -97,6 +97,7 @@ function buildClaudePermissions(
     defaultMode?: string;
     sandboxMode?: string;
     networkAccess?: boolean;
+    additionalDirectories?: string[];
   } = {
     allow: [],
     deny: [],
@@ -129,6 +130,13 @@ function buildClaudePermissions(
     if (typeof permissions.sandbox?.networkAccess === 'boolean') {
       permissionLines.networkAccess = Boolean(permissions.sandbox.networkAccess);
     }
+
+    if (permissions.additionalRoots && permissions.additionalRoots.length > 0) {
+      permissionLines.additionalDirectories = [
+        ...(permissionLines.additionalDirectories ?? []),
+        ...permissions.additionalRoots,
+      ];
+    }
   }
 
   if (
@@ -136,7 +144,8 @@ function buildClaudePermissions(
     permissionLines.deny.length === 0 &&
     permissionLines.ask.length === 0 &&
     permissionLines.defaultMode === undefined &&
-    permissionLines.sandboxMode === undefined
+    permissionLines.sandboxMode === undefined &&
+    (permissionLines.additionalDirectories?.length ?? 0) === 0
   ) {
     return null;
   }

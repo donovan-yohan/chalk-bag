@@ -52,7 +52,7 @@ For setup instructions, see [onboarding.md](./onboarding.md).
 
 ## `.claude/` not updating
 
-**Symptoms:** You edited `.agents/` but the changes did not appear in `.claude/`, `.codex/`, or other generated directories.
+**Symptoms:** You edited `.chalk/` but the changes did not appear in `.claude/`, `.codex/`, or other generated directories.
 
 **Steps:**
 
@@ -142,7 +142,7 @@ For setup instructions, see [onboarding.md](./onboarding.md).
 1. Confirm the file is in the correct location. It must be at:
 
    ```text
-   .agents/permissions.yaml
+   .chalk/permissions.yaml
    ```
 
    A `permissions.yaml` anywhere else is not read.
@@ -213,8 +213,8 @@ see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors
 **Symptoms:** `chalkbag build` fails with an error like:
 
 ```
-error: timed out waiting for render lock (kind: lock, at ~/your-repo/.agents/.state.lock)
-fix: if no other chalkbag process is running, remove .agents/.state.lock
+error: timed out waiting for render lock (kind: lock, at ~/your-repo/.chalk/.state.lock)
+fix: if no other chalkbag process is running, remove .chalk/.state.lock
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#lock
 ```
 
@@ -223,7 +223,7 @@ see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors
 **Fix:** Confirm no other chalkbag process is running, then remove the stale lock:
 
 ```bash
-cd ~/your-repo && rm .agents/.state.lock
+cd ~/your-repo && rm .chalk/.state.lock
 ```
 
 Re-run the build:

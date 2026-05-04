@@ -58,3 +58,15 @@ defaultMode: "default"
 sandbox:
   mode: "workspace-write"
   networkAccess: true
+
+# Extra directories the agent can reach outside the repo cwd. Mapped to:
+#   - Claude: `.claude/settings.json#permissions.additionalDirectories`
+#             (extends Read scope)
+#   - Codex:  `[sandbox_workspace_write].writable_roots`
+#             (extends Write scope; only active when sandbox.mode =
+#             "workspace-write" — codex ignores it in other modes and the
+#             renderer warns)
+# opencode has no equivalent and silently skips this field.
+# additionalRoots:
+#   - "/tmp/nightshift-monitor"
+#   - "/workspace"

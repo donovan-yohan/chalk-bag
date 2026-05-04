@@ -10,9 +10,9 @@ const REQUIRED_GITIGNORE_BLOCK = [
   '!/CLAUDE.md',
   '',
   '# chalkbag — state',
-  '/.agents/.state.json',
-  '/.agents/.state.lock',
-  '/.agents-tmp/',
+  '/.chalk/.state.json',
+  '/.chalk/.state.lock',
+  '/.chalk-tmp/',
 ];
 
 export async function ensureGitignoreEntries(repoRoot: string): Promise<boolean> {

@@ -51,6 +51,9 @@ export const permissionsConfigSchema = z
     mcp: pathPermissionRulesSchema.optional(),
     defaultMode: z.enum(['default', 'acceptEdits', 'plan', 'auto', 'dontAsk']).optional(),
     sandbox: sandboxSchema.optional(),
+    additionalRoots: z
+      .array(z.string(), { error: '`additionalRoots` must be an array of strings' })
+      .optional(),
   })
   .strict();
 

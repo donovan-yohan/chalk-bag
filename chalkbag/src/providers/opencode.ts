@@ -38,7 +38,7 @@ const opencodeProvider = {
       kind: 'file',
       path: 'opencode.json',
       content: `${JSON.stringify({ permission: merged }, null, 2)}\n`,
-      sourcePath: '.agents/permissions.yaml',
+      sourcePath: '.chalk/permissions.yaml',
     });
 
     return files;
@@ -66,7 +66,7 @@ function renderMarkdownDocument(frontmatter: Record<string, unknown>, body: stri
 }
 
 function stripSubagentSourcePrefix(relativePath: string): string {
-  return relativePath.replace(/^(imports:[^/]+\/)?\.agents\/subagents\//u, '');
+  return relativePath.replace(/^(imports:[^/]+\/)?\.chalk\/subagents\//u, '');
 }
 
 function translateDefaultMode(mode?: PermissionsConfig['defaultMode']): 'allow' | 'deny' | 'ask' | undefined {

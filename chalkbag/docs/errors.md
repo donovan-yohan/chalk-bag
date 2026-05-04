@@ -58,7 +58,7 @@ These errors point at the file that failed to parse or the registry entry that c
 **Examples:**
 
 ```
-error: providers.yaml: unknown provider id "cline" (kind: config, at ~/your-repo/.agents/providers.yaml)
+error: providers.yaml: unknown provider id "cline" (kind: config, at ~/your-repo/.chalk/providers.yaml)
 fix: valid provider ids are: claude, codex, opencode
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#config
 ```
@@ -92,16 +92,16 @@ These errors usually mean a file that chalkbag expects is missing or unreadable,
 **Examples:**
 
 ```
-error: could not read .agents/providers.yaml — ENOENT (kind: io, at ~/your-repo/.agents/providers.yaml)
-cause: ENOENT: no such file or directory, open '~/your-repo/.agents/providers.yaml'
-fix: run chalkbag scaffold to create the missing .agents/ structure
+error: could not read .chalk/providers.yaml — ENOENT (kind: io, at ~/your-repo/.chalk/providers.yaml)
+cause: ENOENT: no such file or directory, open '~/your-repo/.chalk/providers.yaml'
+fix: run chalkbag scaffold to create the missing .chalk/ structure
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#io
 ```
 
 This happens when `providers.yaml` is missing. Run `chalkbag scaffold` to recreate it.
 
 ```
-error: subagent source file is not readable (kind: io, at ~/your-repo/.agents/subagents/code-reviewer.md)
+error: subagent source file is not readable (kind: io, at ~/your-repo/.chalk/subagents/code-reviewer.md)
 cause: EACCES: permission denied, open '...'
 fix: check file permissions; the file must be readable by the current user
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#io
@@ -110,7 +110,7 @@ see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors
 This happens when a source file exists but cannot be read.
 
 ```
-error: resolved output path escapes repo root (kind: config, at ~/your-repo/.agents/subagents/escape.md)
+error: resolved output path escapes repo root (kind: config, at ~/your-repo/.chalk/subagents/escape.md)
 fix: output paths must resolve inside the repo root; check for .. or absolute path segments in the source file
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#config
 ```
@@ -156,26 +156,26 @@ This happens on Linux where launchd is not available. Use `chalkbag watch` inste
 
 ## `lock`
 
-The `lock` kind covers render lock contention: a build timed out waiting to acquire `.agents/.state.lock`, or the lock file could not be written.
+The `lock` kind covers render lock contention: a build timed out waiting to acquire `.chalk/.state.lock`, or the lock file could not be written.
 
 **Examples:**
 
 ```
-error: timed out waiting for render lock (kind: lock, at ~/your-repo/.agents/.state.lock)
-fix: if no other chalkbag process is running, remove .agents/.state.lock and retry
+error: timed out waiting for render lock (kind: lock, at ~/your-repo/.chalk/.state.lock)
+fix: if no other chalkbag process is running, remove .chalk/.state.lock and retry
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#lock
 ```
 
 This is the most common `lock` error. It means a previous build was interrupted without releasing the lock. See [troubleshooting.md — Lock stale](./troubleshooting.md#lock-stale).
 
 ```
-error: could not write render lock (kind: lock, at ~/your-repo/.agents/.state.lock)
+error: could not write render lock (kind: lock, at ~/your-repo/.chalk/.state.lock)
 cause: EACCES: permission denied, open '...'
-fix: check that .agents/ is writable by the current user
+fix: check that .chalk/ is writable by the current user
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#lock
 ```
 
-This happens when `.agents/` is not writable, for example after a permissions change.
+This happens when `.chalk/` is not writable, for example after a permissions change.
 
 ---
 
@@ -188,7 +188,7 @@ These errors name the provider and the source file that triggered the failure.
 **Examples:**
 
 ```
-error: claude provider: subagent "code-reviewer" is missing required field "description" (kind: provider, at ~/your-repo/.agents/subagents/code-reviewer.md)
+error: claude provider: subagent "code-reviewer" is missing required field "description" (kind: provider, at ~/your-repo/.chalk/subagents/code-reviewer.md)
 fix: add a description field to the subagent frontmatter
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#provider
 ```
@@ -196,7 +196,7 @@ see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors
 This happens when a subagent source file omits a field that the provider requires. Open the file and add the missing frontmatter key.
 
 ```
-error: codex provider: could not emit agent file for "deploy-bot" (kind: provider, at ~/your-repo/.agents/subagents/deploy-bot.md)
+error: codex provider: could not emit agent file for "deploy-bot" (kind: provider, at ~/your-repo/.chalk/subagents/deploy-bot.md)
 cause: ENOSPC: no space left on device
 fix: free up disk space and retry
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#provider
@@ -205,7 +205,7 @@ see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors
 This happens when the filesystem is full during output writing.
 
 ```
-error: claude provider: skill bundle copy failed for "oncall" (kind: provider, at ~/your-repo/.agents/skills/oncall)
+error: claude provider: skill bundle copy failed for "oncall" (kind: provider, at ~/your-repo/.chalk/skills/oncall)
 cause: ENOENT: no such file or directory, lstat '...'
 fix: verify that the skill directory exists and contains a SKILL.md file
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#provider

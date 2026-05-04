@@ -1,6 +1,6 @@
 # chalkbag
 
-Compiles a tracked `.agents/` source tree into gitignored per-provider configs (`.claude/`, `.codex/`, `.opencode/`). Registers watched paths with a background launchd daemon for incremental rebuilds.
+Compiles a tracked `.chalk/` source tree into gitignored per-provider configs (`.claude/`, `.codex/`, `.opencode/`) plus an `.agents/` mirror for AGENTS.md-spec readers (Codex hierarchical scan and any other tool following the spec). Registers watched paths with a background launchd daemon for incremental rebuilds.
 
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org) [![npm](https://img.shields.io/npm/v/chalkbag)](https://www.npmjs.com/package/chalkbag)
 
@@ -35,7 +35,7 @@ cd ~/your-repo
 chalkbag init
 ```
 
-`init` scaffolds `.agents/` from the built-in template and immediately runs a first render. On success you will see something like:
+`init` scaffolds `.chalk/` from the built-in template and immediately runs a first render. On success you will see something like:
 
 ```
 rendered 3 providers in .claude/, .codex/, opencode.json
@@ -72,11 +72,11 @@ chalkbag daemon install
 
 | Command | Purpose |
 |---|---|
-| `chalkbag init [path]` | Scaffold `.agents/` + run first render (daemon NOT installed by default) |
-| `chalkbag scaffold [path]` | Bootstrap `.agents/` from template only (idempotent) |
-| `chalkbag build [path]` | One-shot render of `.agents/` → provider outputs |
+| `chalkbag init [path]` | Scaffold `.chalk/` + run first render (daemon NOT installed by default) |
+| `chalkbag scaffold [path]` | Bootstrap `.chalk/` from template only (idempotent) |
+| `chalkbag build [path]` | One-shot render of `.chalk/` → provider outputs |
 | `chalkbag watch [path]` | Inline watcher — rebuild on every file change (no daemon required) |
-| `chalkbag validate [path]` | Validate `.agents/` source tree without writing outputs |
+| `chalkbag validate [path]` | Validate `.chalk/` source tree without writing outputs |
 | `chalkbag register [path]` | Register a path in the daemon registry (`--parent` flag for parent-dir mode) |
 | `chalkbag register-group [path]` | Alias for `register --parent` — register a directory of repos |
 | `chalkbag unregister [path]` | Remove a path from the daemon registry |
@@ -142,7 +142,7 @@ The daemon writes a heartbeat file every 30 seconds to `~/.config/chalkbag/heart
 
 ## Registering Parent Directories
 
-Instead of registering each repo individually, register a parent directory and the daemon will discover any child repo that has a `.agents/` directory:
+Instead of registering each repo individually, register a parent directory and the daemon will discover any child repo that has a `.chalk/` directory:
 
 ```bash
 chalkbag register-group ~/Documents/Programs/personal
@@ -154,7 +154,7 @@ This is equivalent to:
 chalkbag register --parent ~/Documents/Programs/personal
 ```
 
-The daemon watches at `depth: 2` — so `~/Documents/Programs/personal/<child>/.agents/` is reachable, but deeper structures are not traversed. This caps file-descriptor usage on large directories.
+The daemon watches at `depth: 2` — so `~/Documents/Programs/personal/<child>/.chalk/` is reachable, but deeper structures are not traversed. This caps file-descriptor usage on large directories.
 
 You can register different parent directories independently without overlap:
 
@@ -177,7 +177,7 @@ chalkbag ships with three first-party providers: `claude`, `codex`, and `opencod
 
 ### vs hand-editing `.claude/settings.json`, `opencode.json`, etc.
 
-Hand-edited provider configs drift. When you update one, the others fall out of sync. chalkbag uses `.agents/` as a single source of truth: one `permissions.yaml`, one set of skills, one set of subagents — compiled to all providers on every build.
+Hand-edited provider configs drift. When you update one, the others fall out of sync. chalkbag uses `.chalk/` as a single source of truth: one `permissions.yaml`, one set of skills, one set of subagents — compiled to all providers on every build.
 
 The `CLAUDE.md` file is a committed symlink to `AGENTS.md`. You never have to remember which file is canonical.
 

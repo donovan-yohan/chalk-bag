@@ -112,7 +112,7 @@ async function main() {
   // init
   // -------------------------------------------------------------------------
   cli
-    .command('init [path]', 'Scaffold .agents/, register cwd, run first build')
+    .command('init [path]', 'Scaffold .chalk/, register cwd, run first build')
     .option('--provider <ids>', 'Providers (repeatable or comma-separated)')
     .option('--daemon', 'Also install the launchd daemon')
     .action(async (targetPath: string | undefined, options: { provider?: string | string[]; daemon?: boolean }) => {
@@ -150,7 +150,7 @@ async function main() {
         .filter(Boolean)
         .join(', ');
 
-      console.log(`chalkbag init: scaffolded .agents/ at ${resolved}`);
+      console.log(`chalkbag init: scaffolded .chalk/ at ${resolved}`);
       console.log(
         `  created: ${scaffoldResult.created.length > 0 ? scaffoldResult.created.join(', ') : '(none)'}`,
       );
@@ -174,7 +174,7 @@ async function main() {
   // -------------------------------------------------------------------------
   cli
     .command('register [path]', 'Register a path for watching')
-    .option('--parent', 'Parent mode — scan 1 level deep for repos with .agents/')
+    .option('--parent', 'Parent mode — scan 1 level deep for repos with .chalk/')
     .option('--provider <ids>', 'Providers')
     .option('--ignore <glob>', 'Ignore glob (repeatable)')
     .action(
@@ -299,7 +299,7 @@ async function main() {
   // scaffold
   // -------------------------------------------------------------------------
   cli
-    .command('scaffold [path]', 'Bootstrap .agents/ from template')
+    .command('scaffold [path]', 'Bootstrap .chalk/ from template')
     .option('--provider <ids>', 'Providers')
     .action(
       async (targetPath: string | undefined, options: { provider?: string | string[] }) => {
@@ -372,7 +372,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // validate
   // -------------------------------------------------------------------------
-  cli.command('validate [path]', 'Validate a .agents/ tree').action(
+  cli.command('validate [path]', 'Validate a .chalk/ tree').action(
     async (targetPath: string | undefined) => {
       await validateAgentsRepo(path.resolve(targetPath ?? process.cwd()));
       console.log('chalkbag validate: ok');
@@ -411,7 +411,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // import
   // -------------------------------------------------------------------------
-  cli.command('import [path]', 'Import legacy provider files into .agents/').action(
+  cli.command('import [path]', 'Import legacy provider files into .chalk/').action(
     async (targetPath: string | undefined) => {
       await importAgentsRepo(path.resolve(targetPath ?? process.cwd()));
     },

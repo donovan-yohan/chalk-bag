@@ -64,8 +64,8 @@ describe('validateImportPath — traversal rejection (eng auto-fix H-4)', () => 
     expect(() => validateImportPath('shared', 'github:owner/repo')).not.toThrow();
   });
 
-  it('accepts a dotfile path like ".agents"', () => {
-    expect(() => validateImportPath('.agents', 'github:owner/repo')).not.toThrow();
+  it('accepts a dotfile path like ".chalk"', () => {
+    expect(() => validateImportPath('.chalk', 'github:owner/repo')).not.toThrow();
   });
 
   // --- Windows-style absolute paths (issue #9) ---
@@ -110,7 +110,7 @@ function makeScope(repoRoot: string): AgentsScope {
   return {
     sourceRoot: repoRoot,
     outputRoot: repoRoot,
-    agentsRoot: path.join(repoRoot, '.agents'),
+    agentsRoot: path.join(repoRoot, '.chalk'),
   };
 }
 
@@ -130,7 +130,7 @@ describe('mergeImport — collision detection (issue #3)', () => {
   it('does not overwrite AGENTS.md when local repo already has a root document', async () => {
     const repoRoot = path.join(tmpDir, 'repo');
     const importRoot = path.join(tmpDir, 'import-cache');
-    const agentsDir = path.join(importRoot, '.agents');
+    const agentsDir = path.join(importRoot, '.chalk');
 
     fs.mkdirSync(repoRoot, { recursive: true });
     fs.mkdirSync(agentsDir, { recursive: true });
@@ -158,7 +158,7 @@ describe('mergeImport — collision detection (issue #3)', () => {
   it('detects collision for uppercase skill path containing uppercase letters', async () => {
     const repoRoot = path.join(tmpDir, 'repo');
     const importRoot = path.join(tmpDir, 'import-cache');
-    const agentsDir = path.join(importRoot, '.agents');
+    const agentsDir = path.join(importRoot, '.chalk');
     const skillDir = path.join(agentsDir, 'skills', 'MySkill');
 
     fs.mkdirSync(repoRoot, { recursive: true });
@@ -173,11 +173,11 @@ describe('mergeImport — collision detection (issue #3)', () => {
     // Simulate local repo already has a skill at the same exact path
     localRepo.skills = [
       {
-        directoryPath: path.join(repoRoot, '.agents', 'skills', 'MySkill'),
-        directoryRelativePath: '.agents/skills/MySkill',
+        directoryPath: path.join(repoRoot, '.chalk', 'skills', 'MySkill'),
+        directoryRelativePath: '.chalk/skills/MySkill',
         entrypoint: {
-          sourcePath: path.join(repoRoot, '.agents', 'skills', 'MySkill', 'SKILL.md'),
-          relativePath: '.agents/skills/MySkill/SKILL.md',
+          sourcePath: path.join(repoRoot, '.chalk', 'skills', 'MySkill', 'SKILL.md'),
+          relativePath: '.chalk/skills/MySkill/SKILL.md',
           body: 'Body',
           frontmatter: { name: 'MySkill', description: 'A test skill' },
         },
@@ -190,6 +190,6 @@ describe('mergeImport — collision detection (issue #3)', () => {
 
     // The imported skill should be skipped (local takes precedence)
     expect(merged.skills).toHaveLength(1);
-    expect(merged.skills[0].directoryRelativePath).toBe('.agents/skills/MySkill');
+    expect(merged.skills[0].directoryRelativePath).toBe('.chalk/skills/MySkill');
   });
 });

@@ -1,6 +1,6 @@
 # chalkbag agents spec
 
-This document describes the `.agents/` source-of-truth model that chalkbag reads and compiles. It covers how instructions, skills, subagents, and permissions are organized, how they are built, and what each provider receives.
+This document describes the `.chalk/` source-of-truth model that chalkbag reads and compiles. It covers how instructions, skills, subagents, and permissions are organized, how they are built, and what each provider receives.
 
 For how to set up a repo or machine, see [onboarding.md](./onboarding.md).
 
@@ -9,16 +9,16 @@ For how to set up a repo or machine, see [onboarding.md](./onboarding.md).
 ## 1. Goals
 
 1. **Make repo instructions native.** Root and scoped `AGENTS.md` files live directly in the repo as committed artifacts. Claude compatibility is handled through committed `CLAUDE.md -> AGENTS.md` symlinks instead of compiled instruction Markdown.
-2. **Make skills shared-first.** Skill content lives once under `.agents/skills/` using the standard `SKILL.md` shape. Codex reads those files natively; Claude gets a projected `.claude/skills/` tree.
+2. **Make skills shared-first.** Skill content lives once under `.chalk/skills/` using the standard `SKILL.md` shape. Codex reads those files natively; Claude gets a projected `.claude/skills/` tree.
 3. **Keep subagents compiled.** Subagents require vendor-specific output formats, so chalkbag maintains a shared source directory and compiles vendor-native artifacts into gitignored folders.
-4. **Keep permissions compiled.** `.agents/permissions.yaml` compiles into provider-native config and stays gitignored.
+4. **Keep permissions compiled.** `.chalk/permissions.yaml` compiles into provider-native config and stays gitignored.
 5. **Remove `commands` as a first-class source concept.** Explicit invocation comes from vendor-native skill surfaces (`/skill` in Claude, `$skill` in Codex), not from a separate command abstraction.
 
 ---
 
 ## 2. Source-of-truth layout
 
-Everything that feeds chalkbag lives in `.agents/` plus the tracked root files:
+Everything that feeds chalkbag lives in `.chalk/` plus the tracked root files:
 
 ```text
 <repo>/
@@ -26,7 +26,7 @@ Everything that feeds chalkbag lives in `.agents/` plus the tracked root files:
 ├── CLAUDE.md -> AGENTS.md     # tracked symlink (add when claude is enabled)
 ├── <scoped-dir>/AGENTS.md     # tracked, optional scoped guidance
 ├── <scoped-dir>/CLAUDE.md -> AGENTS.md
-└── .agents/
+└── .chalk/
     ├── providers.yaml         # required; declares enabled providers
     ├── permissions.yaml       # optional; DSL for per-provider permissions
     ├── config.yaml            # optional; external import declarations
@@ -45,7 +45,7 @@ Key points:
 - `AGENTS.md` at the repo root is the canonical instruction file.
 - Scoped `AGENTS.md` files apply to subdirectories and are committed normally.
 - Every `AGENTS.md` that Claude should see needs a sibling `CLAUDE.md` symlink pointing to it.
-- `.agents/AGENTS.md`, `.agents/rules/`, and `.agents/commands/` are not supported — see [section 10](#10-what-is-explicitly-out).
+- `.chalk/AGENTS.md`, `.chalk/rules/`, and `.chalk/commands/` are not supported — see [section 10](#10-what-is-explicitly-out).
 
 ---
 
@@ -98,10 +98,10 @@ This lint belongs in the target repo CI, not inside chalkbag build output.
 
 ### Shared source
 
-Skills are defined once under `.agents/skills/<skill-name>/` using the standard `SKILL.md` shape:
+Skills are defined once under `.chalk/skills/<skill-name>/` using the standard `SKILL.md` shape:
 
 ```text
-.agents/skills/<skill-name>/
+.chalk/skills/<skill-name>/
 ├── SKILL.md
 ├── references/
 ├── scripts/
@@ -112,8 +112,8 @@ Skills are defined once under `.agents/skills/<skill-name>/` using the standard 
 
 ### Vendor behavior
 
-- **Codex:** reads `.agents/skills/` natively. No compile step needed.
-- **Claude:** expects `.claude/skills/`, so `chalkbag build` projects `.agents/skills/` into `.claude/skills/`. The full bundle is copied, not just `SKILL.md`, so colocated files remain available.
+- **AGENTS.md spec readers (Codex hierarchical scan, etc.):** chalkbag mirrors `.chalk/skills/` into a gitignored `.agents/skills/` tree on every build, which the spec's hierarchical discovery picks up natively.
+- **Claude:** expects `.claude/skills/`, so `chalkbag build` projects `.chalk/skills/` into `.claude/skills/`. The full bundle is copied, not just `SKILL.md`, so colocated files remain available.
 - **OpenCode:** per provider spec in `providers/opencode.ts`.
 
 ### Explicit invocation surface
@@ -131,10 +131,10 @@ chalkbag does not need a separate command definition type for explicit invocatio
 
 ### Shared source
 
-Subagents live under `.agents/subagents/` as Markdown files:
+Subagents live under `.chalk/subagents/` as Markdown files:
 
 ```text
-.agents/subagents/
+.chalk/subagents/
 └── code-reviewer.md
 ```
 
@@ -160,7 +160,7 @@ So subagents remain a real compiler boundary.
 
 `chalkbag build` will:
 
-1. Read `.agents/subagents/*.md`
+1. Read `.chalk/subagents/*.md`
 2. Validate the shared frontmatter/body shape
 3. Emit Claude-native agents into `.claude/agents/`
 4. Emit Codex-native agents into `.codex/agents/`
@@ -174,7 +174,7 @@ Never hand-edit the emitted `.claude/agents/*` or `.codex/agents/*` files direct
 ### Source
 
 ```text
-.agents/permissions.yaml
+.chalk/permissions.yaml
 ```
 
 This is the single source of truth for what the AI agent is allowed to do in this repo.
@@ -224,7 +224,7 @@ defaultMode: auto
 
 ### Declaring imports
 
-Add a `.agents/config.yaml` to reference skills or subagents from external GitHub sources:
+Add a `.chalk/config.yaml` to reference skills or subagents from external GitHub sources:
 
 ```yaml
 imports:
@@ -241,7 +241,7 @@ Fields:
 
 ### Merge precedence
 
-Local files in `.agents/` always win over imported files. Imports fill in what is not defined locally.
+Local files in `.chalk/` always win over imported files. Imports fill in what is not defined locally.
 
 ### Cache location
 
@@ -261,11 +261,11 @@ chalkbag cache clear
 - Root `CLAUDE.md` symlink
 - Scoped `AGENTS.md` files
 - Scoped `CLAUDE.md` symlinks
-- `.agents/providers.yaml`
-- `.agents/permissions.yaml` (optional)
-- `.agents/config.yaml` (optional)
-- `.agents/skills/**`
-- `.agents/subagents/**`
+- `.chalk/providers.yaml`
+- `.chalk/permissions.yaml` (optional)
+- `.chalk/config.yaml` (optional)
+- `.chalk/skills/**`
+- `.chalk/subagents/**`
 
 ### Gitignored (generated by chalkbag)
 
@@ -276,8 +276,8 @@ chalkbag cache clear
 
 ### What `chalkbag build` does
 
-1. Validates `.agents/providers.yaml`, `.agents/permissions.yaml`, `.agents/skills/**`, `.agents/subagents/**`
-2. Resolves and merges any external imports declared in `.agents/config.yaml`
+1. Validates `.chalk/providers.yaml`, `.chalk/permissions.yaml`, `.chalk/skills/**`, `.chalk/subagents/**`
+2. Resolves and merges any external imports declared in `.chalk/config.yaml`
 3. Projects skills into `.claude/skills/**`
 4. Compiles subagents into `.claude/agents/**` and `.codex/agents/**`
 5. Compiles permissions into provider-native config
@@ -287,10 +287,10 @@ chalkbag does **not** create or manage tracked `AGENTS.md` content or `CLAUDE.md
 
 ### Lock file
 
-`chalkbag build` uses `.agents/.state.lock` to prevent concurrent renders. If a build is interrupted abnormally, remove the stale lock:
+`chalkbag build` uses `.chalk/.state.lock` to prevent concurrent renders. If a build is interrupted abnormally, remove the stale lock:
 
 ```bash
-cd ~/your-repo && rm .agents/.state.lock
+cd ~/your-repo && rm .chalk/.state.lock
 ```
 
 See [troubleshooting.md](./troubleshooting.md#lock-stale) for more.
@@ -359,8 +359,8 @@ The following concepts are not supported by chalkbag and will cause a validation
 
 | Path / feature | Why excluded |
 |---|---|
-| `.agents/commands/` | Claude's extension surface is skills; commands add abstraction with no benefit |
-| `.agents/rules/` | Rules compiled into `AGENTS.md` are replaced by tracked native `AGENTS.md` files |
+| `.chalk/commands/` | Claude's extension surface is skills; commands add abstraction with no benefit |
+| `.chalk/rules/` | Rules compiled into `AGENTS.md` are replaced by tracked native `AGENTS.md` files |
 | `.fullstack-agents/` | Workspace-root special case from xt agents; chalkbag is single-repo only |
 | `WORKSPACE_ROOT` env / fullstack mode | No workspace root concept in chalkbag |
 

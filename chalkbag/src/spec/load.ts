@@ -59,18 +59,18 @@ export async function loadAgentsRepo(scope: AgentsScope): Promise<LoadedAgentsRe
     path.join(agentsRoot, 'agents'),
   ];
 
-  await assertFileExists(providersPath, 'root .agents/providers.yaml is required');
+  await assertFileExists(providersPath, 'root .chalk/providers.yaml is required');
 
-  // Root AGENTS.md is loaded from the repo root (tracked file), not from .agents/
+  // Root AGENTS.md is loaded from the repo root (tracked file), not from .chalk/
   const repoRootAgentsMd = path.join(repoRoot, 'AGENTS.md');
   const root = (await pathExists(repoRootAgentsMd))
     ? await loadMarkdownDocument(repoRoot, repoRootAgentsMd, targetsFrontmatterSchema)
     : null;
 
   for (const legacyPath of legacyPaths) {
-    await assertPathMissing(legacyPath, 'unsupported chalkbag directory; use tracked AGENTS.md, .agents/skills/, and .agents/subagents/');
+    await assertPathMissing(legacyPath, 'unsupported chalkbag directory; use tracked AGENTS.md, .chalk/skills/, and .chalk/subagents/');
   }
-  await assertPathMissing(rootPath, 'root AGENTS.md must be tracked directly in the repo root, not inside .agents/');
+  await assertPathMissing(rootPath, 'root AGENTS.md must be tracked directly in the repo root, not inside .chalk/');
 
   const providers = parseWithSchema(
     providersConfigSchema,
@@ -170,7 +170,7 @@ async function assertFileExists(filePath: string, message: string): Promise<void
       kind: 'config',
       file: filePath,
       message,
-      fix: 'ensure the file exists and the .agents/ directory is properly scaffolded',
+      fix: 'ensure the file exists and the .chalk/ directory is properly scaffolded',
     });
   }
 }
@@ -280,7 +280,7 @@ async function readUtf8File(filePath: string): Promise<string> {
     throw new ChalkBagError({
       kind: 'io',
       file: filePath,
-      message: 'failed to read .agents file',
+      message: 'failed to read .chalk file',
       cause: error,
       fix: 'ensure the file is readable and not corrupted',
     });
@@ -294,7 +294,7 @@ async function readDirectory(directory: string): Promise<fs.Dirent[]> {
     throw new ChalkBagError({
       kind: 'io',
       file: directory,
-      message: 'failed to scan .agents markdown files',
+      message: 'failed to scan .chalk markdown files',
       cause: error,
       fix: 'ensure the directory exists and is readable',
     });

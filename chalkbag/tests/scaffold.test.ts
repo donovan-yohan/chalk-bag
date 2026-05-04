@@ -9,7 +9,7 @@ import { ChalkBagError } from '../src/types.js';
 
 // Point at the built-in template directory
 const TEMPLATE_ROOT = path.resolve(
-  new URL('../templates/.agents', import.meta.url).pathname,
+  new URL('../templates/.chalk', import.meta.url).pathname,
 );
 
 let tmpDir: string;
@@ -23,28 +23,28 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// scaffoldRepo — creates .agents/ with template files
+// scaffoldRepo — creates .chalk/ with template files
 // ---------------------------------------------------------------------------
 
-describe('scaffoldRepo — creates .agents/ with template files', () => {
-  it('creates the .agents/ directory', async () => {
+describe('scaffoldRepo — creates .chalk/ with template files', () => {
+  it('creates the .chalk/ directory', async () => {
     await scaffoldRepo(tmpDir, { templateRoot: TEMPLATE_ROOT });
-    expect(fs.existsSync(path.join(tmpDir, '.agents'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.chalk'))).toBe(true);
   });
 
   it('copies providers.yaml from the template', async () => {
     await scaffoldRepo(tmpDir, { templateRoot: TEMPLATE_ROOT });
-    expect(fs.existsSync(path.join(tmpDir, '.agents', 'providers.yaml'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.chalk', 'providers.yaml'))).toBe(true);
   });
 
   it('copies README.md from the template', async () => {
     await scaffoldRepo(tmpDir, { templateRoot: TEMPLATE_ROOT });
-    expect(fs.existsSync(path.join(tmpDir, '.agents', 'README.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.chalk', 'README.md'))).toBe(true);
   });
 
   it('copies the skills directory with example skill', async () => {
     await scaffoldRepo(tmpDir, { templateRoot: TEMPLATE_ROOT });
-    expect(fs.existsSync(path.join(tmpDir, '.agents', 'skills'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.chalk', 'skills'))).toBe(true);
   });
 
   it('creates AGENTS.md stub at repo root', async () => {
@@ -130,7 +130,7 @@ describe('scaffoldRepo — idempotent on second run', () => {
 describe('scaffoldRepo — --provider filter', () => {
   it('filters providers.yaml to only include requested providers', async () => {
     await scaffoldRepo(tmpDir, { templateRoot: TEMPLATE_ROOT, providers: ['claude'] });
-    const providersPath = path.join(tmpDir, '.agents', 'providers.yaml');
+    const providersPath = path.join(tmpDir, '.chalk', 'providers.yaml');
     const content = fs.readFileSync(providersPath, 'utf8');
     // claude should be enabled
     expect(content).toContain('claude');
@@ -161,7 +161,7 @@ describe('scaffoldRepo — --provider filter', () => {
 
   it('includes all providers when no filter is given', async () => {
     await scaffoldRepo(tmpDir, { templateRoot: TEMPLATE_ROOT });
-    const providersPath = path.join(tmpDir, '.agents', 'providers.yaml');
+    const providersPath = path.join(tmpDir, '.chalk', 'providers.yaml');
     const content = fs.readFileSync(providersPath, 'utf8');
     expect(content).toContain('claude');
     expect(content).toContain('codex');
@@ -176,7 +176,7 @@ describe('scaffoldRepo — --provider filter', () => {
 describe('scaffoldRepo — dryRun mode', () => {
   it('does not create any files in dryRun mode', async () => {
     const result = await scaffoldRepo(tmpDir, { templateRoot: TEMPLATE_ROOT, dryRun: true });
-    expect(fs.existsSync(path.join(tmpDir, '.agents'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, '.chalk'))).toBe(false);
     // wouldCreate should list what would be created
     expect(result.wouldCreate.length).toBeGreaterThan(0);
   });

@@ -57,6 +57,6 @@ export function hashContent(content: string): string {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
-function getStatePath(repoRoot: string, stateDirectory = '.agents'): string {
+function getStatePath(repoRoot: string, stateDirectory = '.chalk'): string {
   return path.join(repoRoot, stateDirectory, '.state.json');
 }
