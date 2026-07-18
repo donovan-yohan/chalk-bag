@@ -15,21 +15,28 @@ import {
   getRegistryPath,
   getHeartbeatPath,
   getLogDir,
-  getLaunchdPlistPath,
   getPauseFlagPath,
   isHeartbeatStale,
   readHeartbeat,
   hasPauseFlag,
 } from './daemon/registry.js';
 import {
-  buildDefaultLaunchdPlist,
-  installLaunchdAgent,
-  reloadLaunchdAgent,
-  uninstallLaunchdAgent,
-} from './daemon/launchd.js';
+  installDaemon,
+  reloadDaemon,
+  uninstallDaemon,
+  getDaemonStatus,
+  describeServiceManager,
+} from './daemon/service.js';
 import { buildAgentsRepo } from './render.js';
 import { watchAgentsRepo } from './watcher.js';
 import { scaffoldRepo } from './commands/scaffold.js';
+import {
+  buildGlobalScope,
+  cleanGlobalScope,
+  scaffoldGlobal,
+  validateGlobalScope,
+} from './global.js';
+import { resolveGlobalScope } from './scope.js';
 import { validateAgentsRepo } from './spec/validate.js';
 import { importAgentsRepo } from './importer.js';
 import { runGitHook } from './hooks.js';
@@ -95,6 +102,50 @@ function parseProviders(input: string | string[] | undefined): ProviderId[] {
   return ids as ProviderId[];
 }
 
+/**
+ * Machine-level `chalkbag init --global`: scaffold ~/.chalk/, register the
+ * global scope with the daemon, and run the first build.
+ */
+async function runGlobalInit(installDaemonFlag?: boolean): Promise<void> {
+  const scaffold = await scaffoldGlobal();
+
+  // register (global mode) — idempotent
+  try {
+    await addPath({ path: scaffold.home, mode: 'global', providers: ['claude', 'codex'], ignore: [] });
+  } catch (e) {
+    if (e instanceof ChalkBagError && /already registered/.test(e.message)) {
+      // idempotent — not an error
+    } else {
+      throw e;
+    }
+  }
+
+  const result = await buildGlobalScope({});
+
+  console.log(`chalkbag init --global: scaffolded ${scaffold.agentsRoot}`);
+  console.log(`  created: ${scaffold.created.length > 0 ? scaffold.created.join(', ') : '(none)'}`);
+  console.log(`  registered: ${scaffold.home} (mode: global, providers: claude, codex)`);
+  console.log(`  linked: ${result.linked.length > 0 ? result.linked.join(', ') : '(none)'}`);
+  for (const warning of result.warnings) {
+    console.warn(`  warning: ${warning}`);
+  }
+  console.log(`  next: edit ${path.join(scaffold.agentsRoot, 'AGENTS.md')}, then \`chalkbag build --global\``);
+
+  if (installDaemonFlag) {
+    const { manager, unitPath } = await installDaemon();
+    console.log(`  daemon: installed via ${manager} (${unitPath})`);
+  }
+}
+
+async function pathExistsSafe(targetPath: string): Promise<boolean> {
+  try {
+    await fs.promises.lstat(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function readPackageVersion(): Promise<string> {
   const pkgPath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'package.json');
   try {
@@ -114,8 +165,13 @@ async function main() {
   cli
     .command('init [path]', 'Scaffold .chalk/, register cwd, run first build')
     .option('--provider <ids>', 'Providers (repeatable or comma-separated)')
-    .option('--daemon', 'Also install the launchd daemon')
-    .action(async (targetPath: string | undefined, options: { provider?: string | string[]; daemon?: boolean }) => {
+    .option('--global', 'Scaffold + build the machine-level ~/.chalk/ scope instead of a repo')
+    .option('--daemon', 'Also install the background daemon (launchd on macOS, systemd on Linux)')
+    .action(async (targetPath: string | undefined, options: { provider?: string | string[]; global?: boolean; daemon?: boolean }) => {
+      if (options.global) {
+        await runGlobalInit(options.daemon);
+        return;
+      }
       const resolved = path.resolve(targetPath ?? process.cwd());
       const providers =
         parseProviders(options.provider).length > 0
@@ -159,9 +215,8 @@ async function main() {
       console.log(`  next: edit AGENTS.md, then \`chalkbag build\` to re-render`);
 
       if (options.daemon) {
-        const plist = await buildDefaultLaunchdPlist();
-        await installLaunchdAgent(plist);
-        console.log(`  daemon: installed (${getLaunchdPlistPath()})`);
+        const { manager, unitPath } = await installDaemon();
+        console.log(`  daemon: installed via ${manager} (${unitPath})`);
       } else {
         console.log(
           `  daemon: not installed — run \`chalkbag daemon install\` to enable`,
@@ -269,18 +324,34 @@ async function main() {
     const paused = await hasPauseFlag();
     const heartbeatMs = await readHeartbeat();
     const stale = await isHeartbeatStale();
+    const service = describeServiceManager();
     // findPathFor is available if needed; suppress unused warning by referencing in output
     const currentEntry = await findPathFor(process.cwd());
+
+    // Global scope status, reported distinctly from repo/parent entries.
+    const globalScope = resolveGlobalScope();
+    const globalEntry = registry.paths.find((entry) => entry.mode === 'global') ?? null;
+    const globalStatus = {
+      home: globalScope.sourceRoot,
+      agentsRoot: globalScope.agentsRoot,
+      sourceExists: await pathExistsSafe(globalScope.agentsRoot),
+      registered: globalEntry !== null,
+      providers: globalEntry?.providers ?? [],
+    };
+
     console.log(
       JSON.stringify(
         {
           version: registry.version,
           pathCount: registry.paths.length,
           configHome: getConfigHome(),
+          global: globalStatus,
           registryPath: getRegistryPath(),
           heartbeatPath: getHeartbeatPath(),
           logDir: getLogDir(),
-          launchdPlistPath: getLaunchdPlistPath(),
+          platform: service.platform,
+          serviceManager: service.manager,
+          servicePath: service.unitPath,
           pauseFlagPath: getPauseFlagPath(),
           paused,
           heartbeatStale: stale,
@@ -328,13 +399,28 @@ async function main() {
   cli
     .command('build [path]', 'One-shot render')
     .option('--provider <ids>', 'Providers')
+    .option('--global', 'Build the machine-level ~/.chalk/ scope')
     .option('--yes', 'Auto-apply gitignore updates')
     .option('--force', 'Bypass daemon heartbeat stale check')
     .action(
       async (
         targetPath: string | undefined,
-        options: { provider?: string | string[]; yes?: boolean; force?: boolean },
+        options: { provider?: string | string[]; global?: boolean; yes?: boolean; force?: boolean },
       ) => {
+        if (options.global) {
+          const providers = parseProviders(options.provider);
+          const result = await buildGlobalScope({
+            providers: providers.length > 0 ? providers : undefined,
+          });
+          console.log(`chalkbag build --global: ok`);
+          if (result.linked.length > 0) {
+            console.log(`  linked: ${result.linked.join(', ')}`);
+          }
+          for (const warning of result.warnings) {
+            console.warn(warning);
+          }
+          return;
+        }
         const resolved = path.resolve(targetPath ?? process.cwd());
         const providers =
           parseProviders(options.provider).length > 0
@@ -372,12 +458,18 @@ async function main() {
   // -------------------------------------------------------------------------
   // validate
   // -------------------------------------------------------------------------
-  cli.command('validate [path]', 'Validate a .chalk/ tree').action(
-    async (targetPath: string | undefined) => {
+  cli
+    .command('validate [path]', 'Validate a .chalk/ tree')
+    .option('--global', 'Validate the machine-level ~/.chalk/ scope')
+    .action(async (targetPath: string | undefined, options: { global?: boolean }) => {
+      if (options.global) {
+        await validateGlobalScope();
+        console.log('chalkbag validate --global: ok');
+        return;
+      }
       await validateAgentsRepo(path.resolve(targetPath ?? process.cwd()));
       console.log('chalkbag validate: ok');
-    },
-  );
+    });
 
   // -------------------------------------------------------------------------
   // cache clear
@@ -396,8 +488,19 @@ async function main() {
   // -------------------------------------------------------------------------
   // clean
   // -------------------------------------------------------------------------
-  cli.command('clean [path]', 'Remove generated provider outputs').action(
-    async (targetPath: string | undefined) => {
+  cli
+    .command('clean [path]', 'Remove generated provider outputs')
+    .option('--global', 'Clean the machine-level ~/.chalk/ outputs (never the user config files)')
+    .action(async (targetPath: string | undefined, options: { global?: boolean }) => {
+      if (options.global) {
+        const result = await cleanGlobalScope();
+        console.log(`chalkbag clean --global: ${result.home}`);
+        console.log(`  removed: ${result.removed.length > 0 ? result.removed.join(', ') : '(none)'}`);
+        if (result.preserved.length > 0) {
+          console.log(`  preserved (your config): ${result.preserved.join(', ')}`);
+        }
+        return;
+      }
       const resolved = path.resolve(targetPath ?? process.cwd());
       for (const entry of providerGeneratedArtifactEntries) {
         const stripped = entry.replace(/^\//, ''); // "/.claude/" -> ".claude/"
@@ -405,8 +508,7 @@ async function main() {
         await fs.promises.rm(targetFile, { recursive: true, force: true });
       }
       console.log(`chalkbag clean: removed generated outputs in ${resolved}`);
-    },
-  );
+    });
 
   // -------------------------------------------------------------------------
   // import
@@ -420,32 +522,25 @@ async function main() {
   // -------------------------------------------------------------------------
   // daemon subcommands
   // -------------------------------------------------------------------------
-  cli.command('daemon install', 'Install the launchd daemon').action(async () => {
-    const plist = await buildDefaultLaunchdPlist();
-    await installLaunchdAgent(plist);
-    console.log(`chalkbag daemon install: ${getLaunchdPlistPath()}`);
-  });
+  cli
+    .command('daemon install', 'Install the background daemon (launchd on macOS, systemd on Linux)')
+    .action(async () => {
+      const { manager, unitPath } = await installDaemon();
+      console.log(`chalkbag daemon install: ${manager} (${unitPath})`);
+    });
 
   cli.command('daemon status', 'Report daemon + heartbeat').action(async () => {
-    const stale = await isHeartbeatStale();
-    const paused = await hasPauseFlag();
-    console.log(
-      JSON.stringify(
-        { heartbeatStale: stale, paused, plist: getLaunchdPlistPath() },
-        null,
-        2,
-      ),
-    );
+    const status = await getDaemonStatus();
+    console.log(JSON.stringify(status, null, 2));
   });
 
-  cli.command('daemon reload', 'Rewrite plist and reload').action(async () => {
-    const plist = await buildDefaultLaunchdPlist();
-    await reloadLaunchdAgent(plist);
+  cli.command('daemon reload', 'Rewrite the unit/plist and reload').action(async () => {
+    await reloadDaemon();
     console.log('chalkbag daemon reload: ok');
   });
 
-  cli.command('daemon uninstall', 'Remove the launchd daemon').action(async () => {
-    await uninstallLaunchdAgent();
+  cli.command('daemon uninstall', 'Stop and remove the daemon unit/plist').action(async () => {
+    await uninstallDaemon();
     console.log('chalkbag daemon uninstall: ok');
   });
 

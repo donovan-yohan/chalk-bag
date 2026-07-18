@@ -1,5 +1,5 @@
 import { readRegistry, touchHeartbeat, hasPauseFlag, getConfigHome } from './registry.js';
-import { startRepoWatcher, startParentWatcher } from '../watcher.js';
+import { startRepoWatcher, startParentWatcher, startGlobalWatcher } from '../watcher.js';
 
 type Watcher = { close: () => Promise<void>; failed: Promise<never> };
 
@@ -19,6 +19,9 @@ async function startWatchers(): Promise<Watcher[]> {
   const registry = await readRegistry();
 
   return registry.paths.map((entry) => {
+    if (entry.mode === 'global') {
+      return startGlobalWatcher(entry.path);
+    }
     if (entry.mode === 'repo') {
       return startRepoWatcher(entry.path, { providers: entry.providers });
     }

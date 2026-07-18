@@ -217,7 +217,7 @@ function renderOutputs(
   return [...rendered.values()].sort((left, right) => left.path.localeCompare(right.path));
 }
 
-async function applyOutputs(
+export async function applyOutputs(
   outputRoot: string,
   outputs: GeneratedOutput[],
   previousManifest: Record<string, { hash: string; sourcePath: string }>,
@@ -273,7 +273,7 @@ async function applyOutputs(
   };
 }
 
-async function acquireRenderLock(repoRoot: string, stateDirectory: string): Promise<() => Promise<void>> {
+export async function acquireRenderLock(repoRoot: string, stateDirectory: string): Promise<() => Promise<void>> {
   const lockPath = path.join(repoRoot, stateDirectory, '.state.lock');
   const startedAt = Date.now();
 
@@ -320,7 +320,7 @@ function normalizeContent(content: string): string {
 // (Codex hierarchical scan and any other tool following the spec) discover
 // them without per-provider rendering. The shape mirrors the source skill
 // folder verbatim — SKILL.md plus any bundled references/, scripts/, assets/.
-function renderSharedAgentsMdMirror(
+export function renderSharedAgentsMdMirror(
   repo: Awaited<ReturnType<typeof loadAgentsRepo>>,
 ): GeneratedOutput[] {
   const outputs: GeneratedOutput[] = [];
