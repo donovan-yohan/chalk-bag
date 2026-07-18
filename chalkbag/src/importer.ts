@@ -10,10 +10,9 @@ export type ImportAgentsResult = {
 
 export async function importAgentsRepo(repoRoot: string): Promise<ImportAgentsResult> {
   const agentsRoot = path.join(repoRoot, '.chalk');
-  const subagentsRoot = path.join(agentsRoot, 'subagents');
   const legacyAgentsRoot = path.join(repoRoot, '.claude', 'agents');
 
-  await fs.promises.mkdir(subagentsRoot, { recursive: true });
+  await fs.promises.mkdir(agentsRoot, { recursive: true });
 
   const rootBodies = await readExistingRootBodies(repoRoot);
   const rootBody = rootBodies.filter(Boolean).join('\n\n---\n\n').trim();
@@ -22,13 +21,10 @@ export async function importAgentsRepo(repoRoot: string): Promise<ImportAgentsRe
     await ensureClaudeSymlink(repoRoot);
   }
 
+  // Legacy .claude/agents/ is detected only to decide provider enablement — it
+  // is no longer copied. Subagents were removed from chalkbag scope; provider
+  // agent definitions must be maintained natively.
   const claudeAgents = await findMarkdownFiles(legacyAgentsRoot);
-  for (const agentPath of claudeAgents) {
-    const relativeAgentPath = path.relative(legacyAgentsRoot, agentPath);
-    const targetPath = path.join(subagentsRoot, relativeAgentPath);
-    await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
-    await fs.promises.copyFile(agentPath, targetPath);
-  }
 
   const legacyRules = await findMarkdownFiles(path.join(repoRoot, '.claude', 'rules'));
   const legacyCommands = await findMarkdownFiles(path.join(repoRoot, '.claude', 'commands'));
@@ -62,6 +58,9 @@ export async function importAgentsRepo(repoRoot: string): Promise<ImportAgentsRe
 
   const conflicts = await findScopedAgents(repoRoot);
   const warnings = [
+    ...(claudeAgents.length > 0
+      ? ['legacy Claude agents (.claude/agents/) are no longer imported; subagents were removed from chalkbag scope — keep them as provider-native definitions']
+      : []),
     ...(legacyRules.length > 0
       ? ['legacy Claude rules require manual migration into tracked AGENTS.md files']
       : []),
@@ -76,7 +75,7 @@ export async function importAgentsRepo(repoRoot: string): Promise<ImportAgentsRe
       console.log(`  warning: ${warning}`);
     }
     for (const conflict of conflicts) {
-      console.log(`  scoped agent found: ${conflict} (review and move to .chalk/subagents/ if needed)`);
+      console.log(`  scoped AGENTS.md found: ${conflict} (tracked in place; review that it is intentional)`);
     }
   } else {
     console.log('chalkbag import: ok');

@@ -122,7 +122,6 @@ function makeEmptyRepo(repoRoot: string): LoadedAgentsRepo {
     providers: { providers: { claude: { enabled: true } } },
     permissions: null,
     skills: [],
-    subagents: [],
   };
 }
 

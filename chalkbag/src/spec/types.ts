@@ -6,6 +6,5 @@ export type {
   ProvidersConfig,
   PermissionsConfig,
   SkillDocument,
-  SubagentDocument,
   TargetsFrontmatter,
 } from './schema.js';

@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import YAML from 'yaml';
 
 import type { LoadedAgentsRepo } from '../spec/load.js';
 import type { PermissionsConfig } from '../spec/schema.js';
@@ -15,20 +14,6 @@ const opencodeProvider = {
     }
 
     const files: GeneratedOutput[] = [];
-
-    for (const agent of context.repo.subagents) {
-      if (!supportsProvider(agent.frontmatter.targets, 'opencode')) {
-        continue;
-      }
-
-      const relativeOutputPath = stripSubagentSourcePrefix(agent.relativePath);
-      files.push({
-        kind: 'file',
-        path: `.opencode/agents/${relativeOutputPath}`,
-        content: renderMarkdownDocument(agent.frontmatter, agent.body),
-        sourcePath: agent.relativePath,
-      });
-    }
 
     const permissionConfig = buildOpencodePermissionConfig(context.repo);
     const existingPermission = readExistingPermission(context.repo.scope.outputRoot);
@@ -46,28 +31,6 @@ const opencodeProvider = {
 } satisfies Provider;
 
 export default opencodeProvider;
-
-function supportsProvider(targets: string[] | undefined, providerId: string): boolean {
-  return targets === undefined ? true : targets.includes(providerId);
-}
-
-function renderMarkdownDocument(frontmatter: Record<string, unknown>, body: string): string {
-  const sanitized = Object.fromEntries(
-    Object.entries(frontmatter)
-      .filter(([key, value]) => key !== 'targets' && value !== undefined)
-      .sort(([left], [right]) => left.localeCompare(right)),
-  );
-
-  if (Object.keys(sanitized).length === 0) {
-    return `${body.trimEnd()}\n`;
-  }
-
-  return `---\n${YAML.stringify(sanitized).trimEnd()}\n---\n\n${body.trimEnd()}\n`;
-}
-
-function stripSubagentSourcePrefix(relativePath: string): string {
-  return relativePath.replace(/^(imports:[^/]+\/)?\.chalk\/subagents\//u, '');
-}
 
 function translateDefaultMode(mode?: PermissionsConfig['defaultMode']): 'allow' | 'deny' | 'ask' | undefined {
   if (!mode) return undefined;

@@ -246,7 +246,7 @@ describe('buildAgentsRepo — resolveOutputPath escape guard (eng M-3)', () => {
     const repoDir = path.join(tmpDir, 'escape-test-repo');
     fs.mkdirSync(repoDir);
 
-    // Build a minimal .chalk/ with a subagent whose generated path would escape
+    // Build a minimal .chalk/ with a generated output path that would escape
     // the repo root. We do this by providing a custom providers.yaml that only
     // enables a mock provider — but since we can't inject a provider at runtime,
     // we test resolveOutputPath via an absolute path in output which is checked
@@ -332,16 +332,17 @@ describe('buildAgentsRepo — provider filtering', () => {
 });
 
 // ---------------------------------------------------------------------------
-// stripSubagentSourcePrefix (issue #11): subagent output path strips .chalk/subagents/ prefix
+// Subagents removed from scope: .chalk/subagents/ is an unsupported path
 // ---------------------------------------------------------------------------
 
-describe('buildAgentsRepo — subagent output path stripping (issue #11)', () => {
-  it('subagent renders to .claude/agents/<name>.md (strips .chalk/subagents/ prefix)', async () => {
-    const repoDir = path.join(tmpDir, 'subagent-strip-repo');
+describe('buildAgentsRepo — .chalk/subagents/ is unsupported', () => {
+  it('throws a clear ChalkBagError when a .chalk/subagents/ directory exists', async () => {
+    const repoDir = path.join(tmpDir, 'subagents-unsupported-repo');
     fs.mkdirSync(repoDir);
     setupMinimalRepo(repoDir);
 
-    // Create a subagent in the .chalk/subagents/ directory
+    // Presence of a legacy .chalk/subagents/ directory must be rejected —
+    // subagents were removed from chalkbag scope.
     const subagentsDir = path.join(repoDir, '.chalk', 'subagents');
     fs.mkdirSync(subagentsDir, { recursive: true });
     fs.writeFileSync(
@@ -350,12 +351,15 @@ describe('buildAgentsRepo — subagent output path stripping (issue #11)', () =>
       'utf8',
     );
 
-    await buildAgentsRepo(repoDir, { force: true, yes: true, providers: ['claude'] });
+    await expect(
+      buildAgentsRepo(repoDir, { force: true, yes: true, providers: ['claude'] }),
+    ).rejects.toThrow(ChalkBagError);
+    await expect(
+      buildAgentsRepo(repoDir, { force: true, yes: true, providers: ['claude'] }),
+    ).rejects.toThrow(/subagents were removed from chalkbag scope/);
 
-    // The subagent should appear at .claude/agents/code-reviewer.md, NOT
-    // .claude/agents/.chalk/subagents/code-reviewer.md
-    expect(fs.existsSync(path.join(repoDir, '.claude', 'agents', 'code-reviewer.md'))).toBe(true);
-    expect(fs.existsSync(path.join(repoDir, '.claude', 'agents', '.chalk', 'subagents', 'code-reviewer.md'))).toBe(false);
+    // Nothing should have been compiled into .claude/agents/
+    expect(fs.existsSync(path.join(repoDir, '.claude', 'agents'))).toBe(false);
   });
 });
 
