@@ -151,7 +151,7 @@ export type ProviderRenderContext = {
 };
 ```
 
-- `repo`: the fully loaded and validated agents spec for the target repo. Contains the resolved `AGENTS.md` content, skills, subagents, permissions, and config.
+- `repo`: the fully loaded and validated agents spec for the target repo. Contains the resolved `AGENTS.md` content, skills, permissions, and config.
 - `enabledProviders`: the list of provider ids that were requested for this build. Use this to skip rendering features that depend on another provider being present.
 - `reportWarning`: call this instead of throwing for non-fatal issues. Warnings are printed to stderr and recorded in the build summary.
 

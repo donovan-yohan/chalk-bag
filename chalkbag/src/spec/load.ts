@@ -3,13 +3,12 @@ import path from 'node:path';
 
 import { ZodError } from 'zod';
 
-import type { AgentsConfig, PermissionsConfig, ProvidersConfig, SkillDocument, SubagentDocument, TargetsFrontmatter } from './types.js';
+import type { AgentsConfig, PermissionsConfig, ProvidersConfig, SkillDocument, TargetsFrontmatter } from './types.js';
 import {
   agentsConfigSchema,
   permissionsConfigSchema,
   providersConfigSchema,
   skillFrontmatterSchema,
-  subagentFrontmatterSchema,
   targetsFrontmatterSchema,
 } from './schema.js';
 import { ChalkBagError } from '../types.js';
@@ -43,7 +42,6 @@ export type LoadedAgentsRepo = {
   root: SourceDocument<TargetsFrontmatter> | null;
   providers: ProvidersConfig;
   skills: LoadedSkill[];
-  subagents: SourceDocument<SubagentDocument>[];
   permissions: PermissionsConfig | null;
 };
 
@@ -53,24 +51,49 @@ export async function loadAgentsRepo(scope: AgentsScope): Promise<LoadedAgentsRe
   const rootPath = path.join(agentsRoot, 'AGENTS.md');
   const providersPath = path.join(agentsRoot, 'providers.yaml');
   const permissionsPath = path.join(agentsRoot, 'permissions.yaml');
-  const legacyPaths = [
-    path.join(agentsRoot, 'rules'),
-    path.join(agentsRoot, 'commands'),
-    path.join(agentsRoot, 'agents'),
+  const unsupportedPaths: Array<{ path: string; message: string }> = [
+    {
+      path: path.join(agentsRoot, 'rules'),
+      message: 'unsupported .chalk/rules/ directory; move rule content into tracked AGENTS.md files',
+    },
+    {
+      path: path.join(agentsRoot, 'commands'),
+      message: 'unsupported .chalk/commands/ directory; migrate command content into shared skills under .chalk/skills/',
+    },
+    {
+      path: path.join(agentsRoot, 'agents'),
+      message: 'unsupported .chalk/agents/ directory; use tracked AGENTS.md and shared skills under .chalk/skills/',
+    },
+    {
+      path: path.join(agentsRoot, 'subagents'),
+      message:
+        'subagents were removed from chalkbag scope; chalkbag no longer compiles .chalk/subagents/ — define agents with your provider natively (e.g. .claude/agents/)',
+    },
   ];
 
   await assertFileExists(providersPath, 'root .chalk/providers.yaml is required');
 
-  // Root AGENTS.md is loaded from the repo root (tracked file), not from .chalk/
-  const repoRootAgentsMd = path.join(repoRoot, 'AGENTS.md');
-  const root = (await pathExists(repoRootAgentsMd))
-    ? await loadMarkdownDocument(repoRoot, repoRootAgentsMd, targetsFrontmatterSchema)
-    : null;
+  const isGlobal = scope.kind === 'global';
 
-  for (const legacyPath of legacyPaths) {
-    await assertPathMissing(legacyPath, 'unsupported chalkbag directory; use tracked AGENTS.md, .chalk/skills/, and .chalk/subagents/');
+  // Context/instruction file:
+  //   - repo scope: a tracked `AGENTS.md` at the repo root; `.chalk/AGENTS.md`
+  //     is forbidden (it must be tracked, not hidden inside .chalk/).
+  //   - global scope: has no git working tree, so the machine-level context
+  //     file *is* `~/.chalk/AGENTS.md` (the bridging symlinks point at it).
+  const root = isGlobal
+    ? (await pathExists(rootPath))
+      ? await loadMarkdownDocument(repoRoot, rootPath, targetsFrontmatterSchema)
+      : null
+    : (await pathExists(path.join(repoRoot, 'AGENTS.md')))
+      ? await loadMarkdownDocument(repoRoot, path.join(repoRoot, 'AGENTS.md'), targetsFrontmatterSchema)
+      : null;
+
+  for (const unsupported of unsupportedPaths) {
+    await assertPathMissing(unsupported.path, unsupported.message);
   }
-  await assertPathMissing(rootPath, 'root AGENTS.md must be tracked directly in the repo root, not inside .chalk/');
+  if (!isGlobal) {
+    await assertPathMissing(rootPath, 'root AGENTS.md must be tracked directly in the repo root, not inside .chalk/');
+  }
 
   const providers = parseWithSchema(
     providersConfigSchema,
@@ -80,7 +103,6 @@ export async function loadAgentsRepo(scope: AgentsScope): Promise<LoadedAgentsRe
   const permissions = await maybeLoadPermissions(permissionsPath);
 
   const skills = await loadSkillDirectory(repoRoot, path.join(agentsRoot, 'skills'));
-  const subagents = await loadDocumentDirectory(repoRoot, path.join(agentsRoot, 'subagents'), subagentFrontmatterSchema);
 
   let repo: LoadedAgentsRepo = {
     scope,
@@ -89,7 +111,6 @@ export async function loadAgentsRepo(scope: AgentsScope): Promise<LoadedAgentsRe
     providers,
     permissions,
     skills,
-    subagents,
   };
 
   const configPath = path.join(agentsRoot, 'config.yaml');
@@ -110,29 +131,13 @@ export async function loadAgentsRepo(scope: AgentsScope): Promise<LoadedAgentsRe
       ...(repo.permissions ? ['permissions.yaml'] : []),
       ...repo.skills.map((skill) => skill.directoryRelativePath),
       ...repo.skills.flatMap((skill) => skill.files.map((file) => file.relativePath)),
-      ...repo.subagents.map((agent) => agent.relativePath),
     ],
     agentsRoot,
   );
 
   repo.skills.sort((a, b) => a.directoryRelativePath.localeCompare(b.directoryRelativePath));
-  repo.subagents.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 
   return repo;
-}
-
-async function loadDocumentDirectory<TFrontmatter>(
-  repoRoot: string,
-  directory: string,
-  schema: { parse: (input: unknown) => TFrontmatter },
-): Promise<Array<SourceDocument<TFrontmatter>>> {
-  if (!(await pathExists(directory))) {
-    return [];
-  }
-
-  const files = await findMarkdownFiles(directory);
-  const documents = await Promise.all(files.map((file) => loadMarkdownDocument(repoRoot, file, schema)));
-  return documents.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 
 async function loadMarkdownDocument<TFrontmatter>(
@@ -196,26 +201,6 @@ async function pathExists(targetPath: string): Promise<boolean> {
     }
     return true;
   }
-}
-
-async function findMarkdownFiles(root: string): Promise<string[]> {
-  const entries = await readDirectory(root);
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    const fullPath = path.join(root, entry.name);
-
-    if (entry.isDirectory()) {
-      files.push(...(await findMarkdownFiles(fullPath)));
-      continue;
-    }
-
-    if (entry.isFile() && entry.name.endsWith('.md')) {
-      files.push(fullPath);
-    }
-  }
-
-  return files.sort();
 }
 
 async function loadSkillDirectory(repoRoot: string, directory: string): Promise<LoadedSkill[]> {

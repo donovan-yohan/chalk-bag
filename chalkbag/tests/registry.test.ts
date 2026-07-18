@@ -102,6 +102,46 @@ describe('addPath — overlap rejection (eng C-1)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// addPath — global mode entry
+// ---------------------------------------------------------------------------
+
+describe('addPath — global scope entry', () => {
+  it('registers a global entry at the home path', async () => {
+    await addPath({ path: '/home/testuser', mode: 'global', providers: ['claude', 'codex'], ignore: [] });
+    const registry = await readRegistry();
+    expect(registry.paths).toHaveLength(1);
+    expect(registry.paths[0]?.mode).toBe('global');
+    expect(registry.paths[0]?.providers).toEqual(['claude', 'codex']);
+  });
+
+  it('is exempt from parent/repo overlap checks (home would otherwise contain every repo)', async () => {
+    await addPath({ path: '/home/testuser', mode: 'global', providers: ['claude'], ignore: [] });
+    // A repo living under the home dir must still be registerable despite the
+    // global entry sitting at the home root.
+    await expect(
+      addPath({ path: '/home/testuser/projects/myrepo', mode: 'repo', providers: ['claude'], ignore: [] }),
+    ).resolves.toBeUndefined();
+    // And a (non-overlapping) parent under home is fine too.
+    await expect(
+      addPath({ path: '/home/testuser/work', mode: 'parent', providers: ['claude'], ignore: [] }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects a second global entry', async () => {
+    await addPath({ path: '/home/testuser', mode: 'global', providers: ['claude'], ignore: [] });
+    await expect(
+      addPath({ path: '/home/other', mode: 'global', providers: ['claude'], ignore: [] }),
+    ).rejects.toThrow('global scope is already registered');
+  });
+
+  it('round-trips a global entry through readRegistry (mode accepted by normalizeEntry)', async () => {
+    await addPath({ path: '/home/testuser', mode: 'global', providers: ['codex'], ignore: [] });
+    const registry = await readRegistry();
+    expect(registry.paths[0]?.mode).toBe('global');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // removePath
 // ---------------------------------------------------------------------------
 

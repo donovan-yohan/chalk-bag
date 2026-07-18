@@ -101,7 +101,7 @@ see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors
 This happens when `providers.yaml` is missing. Run `chalkbag scaffold` to recreate it.
 
 ```
-error: subagent source file is not readable (kind: io, at ~/your-repo/.chalk/subagents/code-reviewer.md)
+error: skill source file is not readable (kind: io, at ~/your-repo/.chalk/skills/oncall/SKILL.md)
 cause: EACCES: permission denied, open '...'
 fix: check file permissions; the file must be readable by the current user
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#io
@@ -110,7 +110,7 @@ see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors
 This happens when a source file exists but cannot be read.
 
 ```
-error: resolved output path escapes repo root (kind: config, at ~/your-repo/.chalk/subagents/escape.md)
+error: resolved output path escapes repo root (kind: config, at ~/your-repo/.chalk/skills/escape/SKILL.md)
 fix: output paths must resolve inside the repo root; check for .. or absolute path segments in the source file
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#config
 ```
@@ -181,22 +181,14 @@ This happens when `.chalk/` is not writable, for example after a permissions cha
 
 ## `provider`
 
-The `provider` kind covers failures within a provider's render function: a provider-specific output could not be generated, a required field is missing in a subagent source, or a skill bundle failed to copy.
+The `provider` kind covers failures within a provider's render function: a provider-specific output could not be generated, or a skill bundle failed to copy.
 
 These errors name the provider and the source file that triggered the failure.
 
 **Examples:**
 
 ```
-error: claude provider: subagent "code-reviewer" is missing required field "description" (kind: provider, at ~/your-repo/.chalk/subagents/code-reviewer.md)
-fix: add a description field to the subagent frontmatter
-see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#provider
-```
-
-This happens when a subagent source file omits a field that the provider requires. Open the file and add the missing frontmatter key.
-
-```
-error: codex provider: could not emit agent file for "deploy-bot" (kind: provider, at ~/your-repo/.chalk/subagents/deploy-bot.md)
+error: codex provider: could not write .codex/config.toml (kind: provider, at ~/your-repo/.chalk/permissions.yaml)
 cause: ENOSPC: no space left on device
 fix: free up disk space and retry
 see: https://github.com/donovan-yohan/chalk-bag/tree/master/chalkbag/docs/errors.md#provider

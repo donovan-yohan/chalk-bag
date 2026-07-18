@@ -2,6 +2,47 @@
 
 Reusable agent skills for structured software development workflows, plus a standalone CLI for compiling per-provider AI configs.
 
+## Quick start (paste this into your agent)
+
+To onboard a repo to chalkbag, paste the block below into Claude Code or Codex from inside that repo and let the agent run it:
+
+```text
+Onboard this repository to chalkbag, a CLI that compiles a tracked `.chalk/`
+source tree plus tracked AGENTS.md files into per-provider agent configs.
+Project: https://github.com/donovan-yohan/chalk-bag
+
+First, fetch and follow the onboarding guide — it is the authoritative reference:
+https://github.com/donovan-yohan/chalk-bag/blob/master/chalkbag/docs/onboarding.md
+
+Then execute this checklist in order, from the repo root:
+
+1. Install the CLI: `npm i -g chalkbag`, then verify with `chalkbag --version`.
+2. Run `chalkbag init` to scaffold `.chalk/` and render the first build.
+3. Author the root `AGENTS.md` as a MAP, not a README: one-line repo purpose, a
+   directory map (path -> what lives there -> when to read it), the exact
+   build/test/lint commands, and working rules an agent cannot infer from code.
+   Link real docs instead of duplicating them; keep it ~60-120 lines.
+4. Verify the committed Claude bridge symlink exists — step 2 created it. Run
+   `ls -l CLAUDE.md`; it should show `CLAUDE.md -> AGENTS.md`. If missing, run
+   `ln -sf AGENTS.md CLAUDE.md`.
+5. Add scoped `AGENTS.md` files in major subdirectories (packages/*, services/*,
+   large src areas), each with a sibling `ln -sf AGENTS.md CLAUDE.md` symlink,
+   following the authoring guide:
+   https://github.com/donovan-yohan/chalk-bag/blob/master/chalkbag/docs/authoring-agents-md.md
+6. Verify `.gitignore` ignores the generated outputs — step 2 added them. It
+   should list `.claude/`, `.codex/`, `.opencode/`, and `opencode.json`. If any
+   are missing, append them.
+7. Review `.chalk/permissions.yaml` and `.chalk/providers.yaml`: enable only the
+   providers this repo uses and scope permissions to what agents actually need.
+8. Run `chalkbag validate && chalkbag build --yes`.
+9. Run `chalkbag doctor` and resolve anything it flags.
+10. Commit the tracked files (AGENTS.md, CLAUDE.md symlinks, `.chalk/`,
+    `.gitignore`); the generated `.claude/`, `.codex/`, `.opencode/`, and
+    `opencode.json` stay ignored.
+```
+
+For the doctrine behind step 3 and step 5, see [Authoring AGENTS.md files](chalkbag/docs/authoring-agents-md.md).
+
 - **chalkbag** — Standalone CLI: compiles `.chalk/` source trees into per-provider configs (`.claude/`, `.codex/`, `.opencode/`)
 - **harness** — Documentation lifecycle management with self-improving review agents
 - **pr** — Pull request lifecycle automation

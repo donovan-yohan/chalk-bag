@@ -12,20 +12,6 @@ const codexProvider = {
     }
 
     const files: GeneratedOutput[] = [];
-    for (const agent of context.repo.subagents) {
-      if (!supportsProvider(agent.frontmatter.targets, 'codex')) {
-        continue;
-      }
-
-      const relativeOutputPath = stripSubagentSourcePrefix(agent.relativePath);
-      const parsedRelativePath = path.parse(relativeOutputPath);
-      files.push({
-        kind: 'file',
-        path: path.posix.join('.codex', 'agents', parsedRelativePath.dir, `${toPromptName(parsedRelativePath.name)}.toml`),
-        content: renderCodexAgent(agent.frontmatter, agent.body),
-        sourcePath: agent.relativePath,
-      });
-    }
 
     const rules = buildCodexCommandRules(context.repo, context.reportWarning);
     if (rules.length > 0) {
@@ -37,7 +23,7 @@ const codexProvider = {
       });
     }
 
-    const config = buildCodexConfig(context.repo, context.reportWarning);
+    const config = buildCodexConfig(context.repo, context.reportWarning, { includeProjectTrust: true });
     if (config.length > 0) {
       files.push({
         kind: 'file',
@@ -57,87 +43,12 @@ const codexProvider = {
 
 export default codexProvider;
 
-function supportsProvider(targets: string[] | undefined, providerId: string): boolean {
-  return targets === undefined ? true : targets.includes(providerId);
-}
-
-function toPromptName(filename: string): string {
-  return filename.replace(/\.md$/u, '').replace(/-/gu, '_');
-}
-
 function pathToTomlQuoted(value: string): string {
   return `"${value.replace(/\\/gu, '\\\\').replace(/"/gu, '\\"')}"`;
 }
 
 function codexRepoSlug(sourceRoot: string): string {
   return sourceRoot.split(path.sep).pop() ?? 'repo';
-}
-
-function renderCodexAgent(frontmatter: Record<string, unknown>, body: string): string {
-  const fields = {
-    ...sanitizeFrontmatter(frontmatter),
-    developer_instructions: body.trimEnd(),
-  };
-
-  return `${serializeToml(fields).trimEnd()}\n`;
-}
-
-function sanitizeFrontmatter(frontmatter: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(frontmatter).filter(([key, value]) => key !== 'targets' && value !== undefined));
-}
-
-function serializeToml(value: Record<string, unknown>, parents: string[] = []): string {
-  const scalarLines: string[] = [];
-  const tableSections: string[] = [];
-
-  for (const [key, entry] of Object.entries(value)) {
-    if (entry === undefined) {
-      continue;
-    }
-
-    if (isPlainObject(entry)) {
-      const tableName = [...parents, key].join('.');
-      const sectionBody = serializeToml(entry as Record<string, unknown>, [...parents, key]).trim();
-      tableSections.push(`[${tableName}]\n${sectionBody}`);
-      continue;
-    }
-
-    scalarLines.push(`${key} = ${serializeTomlValue(entry)}`);
-  }
-
-  return [...scalarLines, ...tableSections].join('\n\n');
-}
-
-function serializeTomlValue(value: unknown): string {
-  if (typeof value === 'string') {
-    return value.includes('\n') ? multilineTomlString(value) : pathToTomlQuoted(value);
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => serializeTomlValue(item)).join(', ')}]`;
-  }
-
-  if (value === null) {
-    return '""';
-  }
-
-  throw new Error(`unsupported TOML value: ${JSON.stringify(value)}`);
-}
-
-function multilineTomlString(value: string): string {
-  return `"""\n${value.replace(/"""/gu, '\\"""')}\n"""`;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stripSubagentSourcePrefix(relativePath: string): string {
-  return relativePath.replace(/^\.chalk\/subagents\//u, '');
 }
 
 function buildCodexCommandRules(
@@ -200,9 +111,19 @@ function translateCodexPrefix(pattern: string): string | null {
   return trimmed.slice(0, wildcardIndex).trimEnd();
 }
 
-function buildCodexConfig(
+/**
+ * Builds the `.codex/config.toml` body lines from a loaded repo.
+ *
+ * `includeProjectTrust` controls the repo-only `[projects."<name>"]`
+ * `trust_level = "trusted"` block: repo scope emits it (the repo is a trusted
+ * project root); global scope skips it (there is no project root to trust) and
+ * instead wraps these same lines in a managed block inside the user's real
+ * `~/.codex/config.toml`.
+ */
+export function buildCodexConfig(
   repo: LoadedAgentsRepo,
   reportWarning: (warning: string) => void,
+  options: { includeProjectTrust: boolean } = { includeProjectTrust: true },
 ): string[] {
   const permissions = repo.permissions;
   const sandboxMode = permissions?.sandbox?.mode ?? 'read-only';
@@ -252,9 +173,11 @@ function buildCodexConfig(
     configLines.push(...sandboxWriteLines);
   }
 
-  configLines.push('');
-  configLines.push(`[projects.${pathToTomlQuoted(projectName)}]`);
-  configLines.push('trust_level = "trusted"');
+  if (options.includeProjectTrust) {
+    configLines.push('');
+    configLines.push(`[projects.${pathToTomlQuoted(projectName)}]`);
+    configLines.push('trust_level = "trusted"');
+  }
 
   return configLines;
 }

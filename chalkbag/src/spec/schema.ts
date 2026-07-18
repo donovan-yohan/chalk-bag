@@ -104,18 +104,6 @@ export const skillFrontmatterSchema = z
   })
   .passthrough();
 
-export const subagentFrontmatterSchema = z
-  .object({
-    name: z.string({
-      error: '`name` must be a string',
-    }),
-    description: z.string({
-      error: '`description` must be a string',
-    }),
-    targets: targetsSchema.optional(),
-  })
-  .passthrough();
-
 const importEntrySchema = z
   .object({
     source: z.string({ error: '`source` must be a string' }).refine(
@@ -154,7 +142,6 @@ export const providersConfigSchema = z
 
 export type TargetsFrontmatter = z.infer<typeof targetsFrontmatterSchema>;
 export type SkillDocument = z.infer<typeof skillFrontmatterSchema>;
-export type SubagentDocument = z.infer<typeof subagentFrontmatterSchema>;
 export type ProvidersConfig = z.infer<typeof providersConfigSchema>;
 export type PermissionsConfig = z.infer<typeof permissionsConfigSchema>;
 export type AgentsConfig = z.infer<typeof agentsConfigSchema>;

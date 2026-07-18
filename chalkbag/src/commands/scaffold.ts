@@ -175,21 +175,77 @@ async function patchProviders(providersPath: string, enabledProviders: string[])
   await fs.promises.writeFile(providersPath, renderProvidersConfig(enabledByProvider), 'utf8');
 }
 
-function renderAgentsMdStub(repoName: string): string {
-  return `# ${repoName}
+/**
+ * Renders the map-style `AGENTS.md` stub used by both the repo scaffold and the
+ * machine-level (`--global`) scaffold. The `global` variant reframes the map
+ * around the developer's machine instead of a single repository.
+ */
+export function renderAgentsMdStub(title: string, options: { global?: boolean } = {}): string {
+  if (options.global) {
+    return `# ${title}
 
-Briefly describe the repository, the default branch, and the main technology stack.
-For chalkbag authoring workflow, see \`.chalk/README.md\`; keep this file repo-specific.
+<!-- Machine-level agent guidance. Write this as a MAP, not a README: keep it
+     short and point at the real tools/docs. This file is the source of truth
+     behind \`~/.claude/CLAUDE.md\` and \`~/.codex/AGENTS.md\` (chalkbag manages
+     those bridge symlinks). Doctrine, with good/bad examples:
+     https://github.com/donovan-yohan/chalk-bag/blob/master/chalkbag/docs/authoring-agents-md.md -->
 
-## Repo map
+One line: how you work on this machine and what an agent should always assume.
 
-- Key directories and their purposes
+## Machine map
+
+| Path | What lives there | When to read it |
+|---|---|---|
+| \`~/.chalk/\` | Machine-level chalkbag source (skills, permissions, this file) | Editing global agent config |
+| \`~/<projects-dir>/\` | Where your repositories live | Locating a repo to work in |
+
+## Defaults every agent should assume
+
+- Prefer the machine's installed toolchain and package managers already on \`PATH\`.
+- Repository-level \`AGENTS.md\` files override this file — read the repo's first.
+- Keep secrets out of prompts and generated config.
+
+## Working rules
+
+- These rules apply everywhere; put repo-specific rules in that repo's \`AGENTS.md\`.
+- Machine-wide skills live in \`~/.chalk/skills/\`; keep them broadly useful.
+`;
+  }
+
+  return `# ${title}
+
+<!-- Write this file as a MAP, not a README. Keep it ~60-120 lines: point at the
+     real docs instead of duplicating them. Doctrine, with good/bad examples:
+     https://github.com/donovan-yohan/chalk-bag/blob/master/chalkbag/docs/authoring-agents-md.md -->
+
+One line: what this repository is and does.
+
+## Directory map
+
+| Path | What lives there | When to read it |
+|---|---|---|
+| \`src/\` | Application source | Changing behavior |
+| \`tests/\` | Test suites | Adding or fixing tests |
+| \`.chalk/\` | chalkbag source (skills, permissions, provider config) | Editing agent config; see \`.chalk/README.md\` |
+
+## Commands
+
+- Install: \`<install command>\`
+- Build: \`<build command>\`
+- Test: \`<test command>\` — single file: \`<single-test command>\`
+- Lint: \`<lint command>\`
 
 ## Working rules
 
 - Preserve the repo's established file organization.
 - Keep thin entrypoints thin; move substantial logic into libraries or focused helper modules.
 - When behavior changes, update the nearest spec/plan/docs that explain it.
+
+## Scoped guides
+
+| Path | Covers |
+|---|---|
+| _(add scoped AGENTS.md files here as the repo grows)_ | |
 `;
 }
 

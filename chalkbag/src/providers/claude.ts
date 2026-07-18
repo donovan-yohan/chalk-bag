@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import YAML from 'yaml';
 
 import type { LoadedAgentsRepo } from '../spec/load.js';
+import { ChalkBagError } from '../types.js';
 import type { GeneratedOutput, Provider } from './_plugin.js';
 
 const claudeProvider = {
@@ -31,20 +31,6 @@ const claudeProvider = {
       }
     }
 
-    for (const agent of context.repo.subagents) {
-      if (!supportsProvider(agent.frontmatter.targets, 'claude')) {
-        continue;
-      }
-
-      const relativeOutputPath = stripSubagentSourcePrefix(agent.relativePath);
-      files.push({
-        kind: 'file',
-        path: `.claude/agents/${relativeOutputPath}`,
-        content: renderMarkdownDocument(agent.frontmatter, agent.body),
-        sourcePath: agent.relativePath,
-      });
-    }
-
     const permissions = buildClaudePermissions(context.repo);
     if (permissions !== null) {
       files.push({
@@ -65,29 +51,30 @@ function supportsProvider(targets: string[] | undefined, providerId: string): bo
   return targets === undefined ? true : targets.includes(providerId);
 }
 
-function sanitizeFrontmatter(frontmatter: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(frontmatter)
-      .filter(([key, value]) => key !== 'targets' && value !== undefined)
-      .sort(([left], [right]) => left.localeCompare(right)),
-  );
-}
+/**
+ * Options for {@link buildClaudePermissions}.
+ *
+ * `unionExistingArrays` controls how the `allow`/`deny`/`ask` permission
+ * arrays merge with the on-disk settings file:
+ *   - repo scope (default `false`): the output is a generated, gitignored file
+ *     chalkbag fully owns, so the arrays are *replaced* by the freshly compiled
+ *     set — removing a rule from `permissions.yaml` removes it from the output.
+ *   - global scope (`true`): the output is the user's real
+ *     `~/.claude/settings.json`, so the arrays are *unioned* with whatever the
+ *     user already has — chalkbag never drops entries it did not author.
+ */
+export type BuildClaudePermissionsOptions = { unionExistingArrays?: boolean };
 
-function renderMarkdownDocument(frontmatter: Record<string, unknown>, body: string): string {
-  const sanitized = sanitizeFrontmatter(frontmatter);
-  if (Object.keys(sanitized).length === 0) {
-    return `${body.trimEnd()}\n`;
-  }
-
-  return `---\n${YAML.stringify(sanitized).trimEnd()}\n---\n\n${body.trimEnd()}\n`;
-}
-
-function stripSubagentSourcePrefix(relativePath: string): string {
-  return relativePath.replace(/^(imports:[^/]+\/)?\.chalk\/subagents\//u, '');
-}
-
-function buildClaudePermissions(
+/**
+ * Builds the `.claude/settings.json` payload, merging chalkbag's permissions
+ * into any existing settings file at `repo.scope.outputRoot/.claude/`. Exported
+ * so the global scope can reuse the exact read-then-merge behavior against the
+ * user's real `~/.claude/settings.json`. Returns `null` when there is nothing
+ * to write.
+ */
+export function buildClaudePermissions(
   repo: LoadedAgentsRepo,
+  options: BuildClaudePermissionsOptions = {},
 ): string | null {
   const permissions = repo.permissions;
   const permissionLines: {
@@ -151,10 +138,15 @@ function buildClaudePermissions(
   }
 
   const existing = readSettingsJson(repo.scope.outputRoot);
-  const mergedPermissions = dedupePermissionLines({
-    ...(existing.permissions ?? {}),
-    ...permissionLines,
-  } as typeof permissionLines);
+  const existingPermissions =
+    typeof existing.permissions === 'object' && existing.permissions !== null
+      ? (existing.permissions as Record<string, unknown>)
+      : {};
+  const mergedPermissions = mergePermissionLines(
+    existingPermissions,
+    permissionLines as unknown as Record<string, unknown>,
+    Boolean(options.unionExistingArrays),
+  );
 
   const payload = {
     ...existing,
@@ -162,6 +154,36 @@ function buildClaudePermissions(
   };
 
   return `${JSON.stringify(payload, null, 2)}\n`;
+}
+
+/**
+ * Merges chalkbag's compiled permission fields into the existing on-disk
+ * permissions object.
+ *
+ * Unrelated keys the user has (e.g. a custom permission bucket) are preserved.
+ * Array-valued fields (`allow`/`deny`/`ask`/`additionalDirectories`) are
+ * deduplicated; when `unionExistingArrays` is set they are unioned with the
+ * user's existing entries rather than replaced, so global scope never drops
+ * user-authored permissions.
+ */
+function mergePermissionLines(
+  existingPermissions: Record<string, unknown>,
+  generated: Record<string, unknown>,
+  unionExistingArrays: boolean,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...existingPermissions };
+
+  for (const [key, value] of Object.entries(generated)) {
+    if (Array.isArray(value)) {
+      const previous =
+        unionExistingArrays && Array.isArray(result[key]) ? (result[key] as unknown[]) : [];
+      result[key] = Array.from(new Set([...(previous as string[]), ...(value as string[])]));
+    } else {
+      result[key] = value;
+    }
+  }
+
+  return result;
 }
 
 function appendPatterns(
@@ -178,36 +200,52 @@ function appendPatterns(
   }
 }
 
-function dedupePermissionLines(
-  permissions: {
-    allow: string[];
-    deny: string[];
-    ask: string[];
-    [key: string]: unknown;
-  },
-): {
-  allow: string[];
-  deny: string[];
-  ask: string[];
-  [key: string]: unknown;
-} {
-  const allow = Array.from(new Set(permissions.allow ?? []));
-  const deny = Array.from(new Set(permissions.deny ?? []));
-  const ask = Array.from(new Set(permissions.ask ?? []));
+/**
+ * Reads the existing `.claude/settings.json` so chalkbag can merge into it.
+ *
+ * Fails closed: a genuinely absent file (ENOENT) is the only case that returns
+ * `{}`. A present-but-unreadable or malformed file throws a {@link ChalkBagError}
+ * so the caller aborts rather than treating the file as empty and rewriting it —
+ * which, for the user's real `~/.claude/settings.json`, would silently drop every
+ * other top-level key.
+ */
+function readSettingsJson(repoRoot: string): Record<string, unknown> {
+  const settingsPath = path.join(repoRoot, '.claude', 'settings.json');
 
-  return {
-    ...permissions,
-    allow,
-    deny,
-    ask,
-  };
+  let raw: string;
+  try {
+    raw = fs.readFileSync(settingsPath, 'utf8');
+  } catch (error) {
+    if (isEnoent(error)) {
+      return {};
+    }
+    throw new ChalkBagError({
+      kind: 'config',
+      file: settingsPath,
+      message: 'could not read existing settings.json',
+      cause: error,
+      fix: 'fix or move the malformed file, then re-run',
+    });
+  }
+
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch (error) {
+    throw new ChalkBagError({
+      kind: 'config',
+      file: settingsPath,
+      message: 'existing settings.json is not valid JSON',
+      cause: error,
+      fix: 'fix or move the malformed file, then re-run',
+    });
+  }
 }
 
-function readSettingsJson(repoRoot: string): Record<string, unknown> {
-  try {
-    const raw = fs.readFileSync(path.join(repoRoot, '.claude', 'settings.json'), 'utf8');
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
+function isEnoent(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
 }

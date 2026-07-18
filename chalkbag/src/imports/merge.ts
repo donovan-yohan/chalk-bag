@@ -3,11 +3,10 @@ import path from 'node:path';
 
 import { ChalkBagError } from '../types.js';
 import type { LoadedAgentsRepo, LoadedSkill, SourceDocument, SourceFile } from '../spec/load.js';
-import type { ImportEntry, PermissionsConfig, SubagentDocument, TargetsFrontmatter } from '../spec/schema.js';
+import type { ImportEntry, PermissionsConfig, TargetsFrontmatter } from '../spec/schema.js';
 import {
   permissionsConfigSchema,
   skillFrontmatterSchema,
-  subagentFrontmatterSchema,
   targetsFrontmatterSchema,
 } from '../spec/schema.js';
 import { parseFrontmatterDocument, parseYamlDocument } from '../spec/frontmatter.js';
@@ -88,17 +87,6 @@ export async function mergeImport(
     }
   }
 
-  // Merge subagents/
-  const subagentsDir = path.join(importRoot, 'subagents');
-  if (await pathExists(subagentsDir)) {
-    const importedSubagents = await loadSubagentDirectory(cachedRepoPath, subagentsDir, entry.source);
-    for (const subagent of importedSubagents) {
-      if (localSeen.has(subagent.relativePath)) continue;
-      assertNoImportCollision(seen, subagent.relativePath, entry.source);
-      repo.subagents.push(subagent);
-    }
-  }
-
   return repo;
 }
 
@@ -110,7 +98,6 @@ function buildLocalCollisionSet(repo: LoadedAgentsRepo): Set<string> {
     seen.add(skill.directoryRelativePath);
     for (const file of skill.files) seen.add(file.relativePath);
   }
-  for (const subagent of repo.subagents) seen.add(subagent.relativePath);
   return seen;
 }
 
@@ -120,7 +107,7 @@ function assertNoImportCollision(seen: Set<string>, relativePath: string, source
       kind: 'config',
       file: source,
       message: `import collision: ${relativePath} is already defined by another import`,
-      fix: 'rename one of the conflicting skills or subagents so their paths are unique across all imports',
+      fix: 'rename one of the conflicting skills so their paths are unique across all imports',
     });
   }
   seen.add(relativePath);
@@ -164,34 +151,6 @@ async function loadSkillDirectory(
   }
 
   return skills;
-}
-
-async function loadSubagentDirectory(
-  repoRoot: string,
-  directory: string,
-  _source: string,
-): Promise<Array<SourceDocument<SubagentDocument>>> {
-  const files = await findMarkdownFiles(directory);
-  const docs = await Promise.all(
-    files.map((file) => loadMarkdownDocument(repoRoot, file, subagentFrontmatterSchema)),
-  );
-  return docs.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
-}
-
-async function findMarkdownFiles(root: string): Promise<string[]> {
-  const entries = await fs.promises.readdir(root, { withFileTypes: true });
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    const fullPath = path.join(root, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...(await findMarkdownFiles(fullPath)));
-    } else if (entry.isFile() && entry.name.endsWith('.md')) {
-      files.push(fullPath);
-    }
-  }
-
-  return files.sort();
 }
 
 async function findAllFiles(root: string): Promise<string[]> {

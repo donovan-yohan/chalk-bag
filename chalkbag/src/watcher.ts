@@ -4,6 +4,7 @@ import path from 'node:path';
 import chokidar from 'chokidar';
 import pLimit from 'p-limit';
 
+import { buildGlobalScope } from './global.js';
 import { buildAgentsRepo } from './render.js';
 import { isPathIgnored } from './scope.js';
 import type { ProviderId } from './providers/registry.js';
@@ -97,6 +98,73 @@ export function startRepoWatcher(
   watcher.on('error', (error) => {
     const typed = error instanceof Error ? error : new Error(String(error));
     console.error(`chalkbag watcher: watch error for ${repoRoot}: ${typed.message}`);
+    failReject(typed);
+  });
+
+  return {
+    close: async (): Promise<void> => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = undefined;
+      }
+      await watcher.close();
+    },
+    failed,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Global watcher
+// ---------------------------------------------------------------------------
+
+/**
+ * Watches the machine-level `<home>/.chalk/**` tree and rebuilds the global
+ * scope on each change. Structurally identical to {@link startRepoWatcher} but
+ * dispatches to {@link buildGlobalScope} instead of the per-repo build.
+ */
+export function startGlobalWatcher(homeRoot: string) {
+  const agentsRoot = path.join(homeRoot, '.chalk');
+
+  const ignored = [
+    /\/\.chalk-tmp\//u,
+    /\/\.chalk\/\.state\.lock$/u,
+    /\/\.chalk\/\.state\.json$/u,
+  ];
+
+  const watcher = chokidar.watch(agentsRoot, {
+    ignoreInitial: true,
+    ignored,
+    followSymlinks: false,
+  });
+
+  let debounceTimer: NodeJS.Timeout | undefined;
+  let failReject: (e: Error) => void = () => {};
+  const failed = new Promise<never>((_, reject) => {
+    failReject = reject;
+  });
+
+  const queueRender = (): void => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(() => {
+      debounceTimer = undefined;
+      void BUILD_CONCURRENCY(async () => {
+        try {
+          await buildGlobalScope({});
+        } catch (error) {
+          console.error(formatRebuildFailure(agentsRoot, error));
+        }
+      });
+    }, 200);
+  };
+
+  watcher.on('add', queueRender);
+  watcher.on('change', queueRender);
+  watcher.on('unlink', queueRender);
+  watcher.on('error', (error) => {
+    const typed = error instanceof Error ? error : new Error(String(error));
+    console.error(`chalkbag watcher: watch error for global ${agentsRoot}: ${typed.message}`);
     failReject(typed);
   });
 

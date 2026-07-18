@@ -6,7 +6,7 @@ import { ChalkBagError } from '../types.js';
 import { isPathIgnored } from '../scope.js';
 import type { ProviderId } from '../providers/registry.js';
 
-export type WatchMode = 'repo' | 'parent';
+export type WatchMode = 'repo' | 'parent' | 'global';
 
 export type WatchedPath = {
   path: string;
@@ -75,6 +75,19 @@ export function getLogDir(): string {
 /** Returns the absolute path to the launchd plist for the chalkbag daemon. */
 export function getLaunchdPlistPath(): string {
   return path.join(os.homedir(), 'Library', 'LaunchAgents', 'com.chalkbag.daemon.plist');
+}
+
+/**
+ * Returns the absolute path to the systemd user unit for the chalkbag daemon.
+ *
+ * Respects `XDG_CONFIG_HOME` when it is set to an absolute path (per the XDG
+ * Base Directory spec, a relative value is ignored and the default is used);
+ * otherwise defaults to `~/.config`.
+ */
+export function getSystemdUnitPath(): string {
+  const xdg = process.env.XDG_CONFIG_HOME;
+  const configRoot = xdg != null && path.isAbsolute(xdg) ? xdg : path.join(os.homedir(), '.config');
+  return path.join(configRoot, 'systemd', 'user', 'chalkbag.service');
 }
 
 /** Returns the absolute path to the pause flag file. */
@@ -192,8 +205,37 @@ export async function addPath(entry: Omit<WatchedPath, 'installedAt'>): Promise<
     const registry = await readRegistry();
     const newPath = path.resolve(entry.path);
 
+    // The global entry watches ~/.chalk/ and is exempt from the repo/parent
+    // overlap invariants (the home dir would otherwise "contain" every repo).
+    // Only one global entry may exist.
+    if (entry.mode === 'global') {
+      const existingGlobal = registry.paths.find((p) => p.mode === 'global');
+      if (existingGlobal) {
+        throw new ChalkBagError({
+          kind: 'config',
+          file: newPath,
+          message: `a global scope is already registered: ${existingGlobal.path}`,
+          fix: 'run `chalkbag unregister` on the existing global path first',
+        });
+      }
+      registry.paths.push({
+        ...entry,
+        path: newPath,
+        installedAt: new Date().toISOString(),
+        providers: [...new Set(entry.providers)].sort(),
+        ignore: [...new Set(entry.ignore)].sort(),
+      });
+      await writeRegistry(registry);
+      return;
+    }
+
     for (const existing of registry.paths) {
       const e = path.resolve(existing.path);
+
+      // Global entries never overlap repo/parent entries.
+      if (existing.mode === 'global') {
+        continue;
+      }
 
       if (e === newPath) {
         throw new ChalkBagError({
@@ -376,7 +418,7 @@ function normalizeEntry(raw: unknown): WatchedPath {
   if (typeof obj['path'] !== 'string' || obj['path'].length === 0) {
     throw new Error(`registry entry has invalid path: ${String(obj['path'])}`);
   }
-  if (obj['mode'] !== 'repo' && obj['mode'] !== 'parent') {
+  if (obj['mode'] !== 'repo' && obj['mode'] !== 'parent' && obj['mode'] !== 'global') {
     throw new Error(`registry entry has invalid mode: ${String(obj['mode'])}`);
   }
   if (!Array.isArray(obj['providers'])) {
